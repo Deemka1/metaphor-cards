@@ -155,21 +155,27 @@
             text-transform: uppercase;
         }
         
-        /* Кнопки */
+        /* === НОВЫЕ КНОПКИ === */
         .btn {
             width: 100%;
-            padding: 16px;
+            padding: 16px 20px;
             border: none;
-            border-radius: 12px;
+            border-radius: 14px;
             font-size: 15px;
             font-weight: 600;
             cursor: pointer;
             margin-bottom: 12px;
-            transition: all 0.3s ease;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             position: relative;
             overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            letter-spacing: 0.3px;
         }
         
+        /* Эффект волны при нажатии */
         .btn::before {
             content: '';
             position: absolute;
@@ -189,41 +195,72 @@
         }
         
         .btn:active { 
-            transform: scale(0.97); 
+            transform: scale(0.96); 
         }
         
+        /* Основная кнопка (получить карту) */
         .btn-primary { 
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            box-shadow: 
+                0 4px 20px rgba(102, 126, 234, 0.4),
+                0 0 0 1px rgba(255, 255, 255, 0.1) inset;
         }
         
         .btn-primary:hover {
-            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+            box-shadow: 
+                0 6px 25px rgba(102, 126, 234, 0.6),
+                0 0 0 1px rgba(255, 255, 255, 0.2) inset;
             transform: translateY(-2px);
         }
         
+        /* Вторичная кнопка (подписка) */
         .btn-secondary { 
-            background: rgba(255, 255, 255, 0.1);
-            color: white;
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.08);
+            color: rgba(255, 255, 255, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
         }
         
         .btn-secondary:hover {
-            background: rgba(255, 255, 255, 0.15);
+            background: rgba(255, 255, 255, 0.12);
+            border-color: rgba(255, 255, 255, 0.25);
+            transform: translateY(-2px);
         }
         
+        /* Кнопка "Поделиться" - синий градиент */
         .btn-share { 
-            background: linear-gradient(135deg, #2AABEE 0%, #229ED9 100%);
+            background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
             color: white;
-            box-shadow: 0 4px 15px rgba(42, 171, 238, 0.4);
+            box-shadow: 
+                0 4px 20px rgba(59, 130, 246, 0.3),
+                0 0 0 1px rgba(255, 255, 255, 0.1) inset;
         }
         
-        .btn-story { 
-            background: linear-gradient(135deg, #E0F2FE 0%, #BAE6FD 100%);
-            color: #0369A1;
-            box-shadow: 0 4px 15px rgba(224, 242, 254, 0.3);
+        .btn-share:hover {
+            box-shadow: 
+                0 6px 25px rgba(59, 130, 246, 0.5),
+                0 0 0 1px rgba(255, 255, 255, 0.2) inset;
+            transform: translateY(-2px);
         }
+        
+        /* Кнопка "История" - фиолетово-розовый градиент */
+        .btn-story { 
+            background: linear-gradient(135deg, #7c3aed 0%, #ec4899 100%);
+            color: white;
+            box-shadow: 
+                0 4px 20px rgba(124, 58, 237, 0.3),
+                0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+        }
+        
+        .btn-story:hover {
+            box-shadow: 
+                0 6px 25px rgba(124, 58, 237, 0.5),
+                0 0 0 1px rgba(255, 255, 255, 0.2) inset;
+            transform: translateY(-2px);
+        }
+        
+        /* === КОНЕЦ НОВЫХ КНОПОК === */
         
         /* Экран без доступа */
         .info {
@@ -388,10 +425,12 @@
             
             <div style="display: flex; flex-direction: column; gap: 12px;">
                 <button class="btn btn-share" onclick="shareCard()">
-                    📤 Поделиться с другом
+                    <span>📤</span>
+                    <span>Поделиться с другом</span>
                 </button>
                 <button class="btn btn-story" onclick="shareToStory()">
-                    📸 Опубликовать в Истории
+                    <span></span>
+                    <span>Опубликовать в Истории</span>
                 </button>
             </div>
         </div>
@@ -473,7 +512,7 @@
                 document.getElementById('cardTitle').textContent = data.card.title;
                 document.getElementById('cardDescription').textContent = data.card.description;
                 document.getElementById('cardDate').textContent = 
-                    data.alreadyReceived ? '✨ Ваше послание на сегодня' : ' Новое послание';
+                    data.alreadyReceived ? '✨ Ваше послание на сегодня' : '🎉 Новое послание';
             } catch (e) {
                 document.getElementById('loading').style.display = 'none';
                 showModal('Что-то пошло не так. Попробуйте позже.', null);
