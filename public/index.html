@@ -71,6 +71,9 @@
         .btn:active { transform: scale(0.98); }
         .btn-primary { background: #667eea; color: white; }
         .btn-secondary { background: #f0f0f0; color: #333; }
+        .btn-share { background: #2AABEE; color: white; }
+        .btn-story { background: #E0F2FE; color: #0369A1; }
+        
         .info {
             background: rgba(255,255,255,0.95);
             padding: 25px;
@@ -135,7 +138,17 @@
             </div>
             <h2 class="card-title" id="cardTitle"></h2>
             <p class="card-description" id="cardDescription"></p>
-            <p style="color:#999; font-size:14px;" id="cardDate"></p>
+            <p style="color:#999; font-size:14px; margin-bottom: 25px;" id="cardDate"></p>
+            
+            <!-- Кнопки шеринга -->
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                <button class="btn btn-share" onclick="shareCard()">
+                     Поделиться с другом
+                </button>
+                <button class="btn btn-story" onclick="shareToStory()">
+                    📸 Опубликовать в Истории
+                </button>
+            </div>
         </div>
     </div>
 
@@ -148,6 +161,9 @@
     </div>
 
     <script>
+        // Имя твоего бота (без символа @)
+        const BOT_USERNAME = 'Card_of_the_days_bot'; 
+        
         const tg = window.Telegram?.WebApp;
         if (tg) {
             try { tg.ready(); } catch(e) {}
@@ -213,9 +229,7 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ userId: userId })
                     });
-                    
                     if (!res.ok) throw new Error('Ошибка сервера');
-                    
                     document.getElementById('noAccess').style.display = 'none';
                     loadCard();
                 } catch (e) {
@@ -232,15 +246,41 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ userId: userId })
                     });
-                    
                     if (!res.ok) throw new Error('Ошибка сервера');
-                    
                     document.getElementById('noAccess').style.display = 'none';
                     loadCard();
                 } catch (e) {
                     showModal('Ошибка: ' + e.message, null);
                 }
             });
+        }
+
+        // === ФУНКЦИИ ШЕРИНГА ===
+        function shareCard() {
+            const title = document.getElementById('cardTitle').textContent;
+            const text = `Я вытянул карту дня: "${title}" 🎴\n\nПопробуй и ты получить свою карту!`;
+            const url = `https://t.me/${BOT_USERNAME}`;
+            const shareLink = `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`;
+            
+            if (tg && tg.openTelegramLink) {
+                tg.openTelegramLink(shareLink);
+            } else {
+                window.open(shareLink, '_blank');
+            }
+        }
+
+        function shareToStory() {
+            const title = document.getElementById('cardTitle').textContent;
+            const text = `Моя карта дня: "${title}" `;
+            const url = `https://t.me/${BOT_USERNAME}`;
+            // Ссылка для создания Истории в Telegram
+            const storyLink = `https://t.me/share/story?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`;
+            
+            if (tg && tg.openTelegramLink) {
+                tg.openTelegramLink(storyLink);
+            } else {
+                window.open(storyLink, '_blank');
+            }
         }
         
         loadCard();
