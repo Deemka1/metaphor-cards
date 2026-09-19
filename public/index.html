@@ -5,85 +5,264 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Карта дня</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
+        
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Inter', sans-serif;
+            background: #0a0a0f;
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
             padding: 20px;
+            overflow-x: hidden;
+            position: relative;
         }
-        .container { max-width: 400px; width: 100%; }
+        
+        /* Анимированный фон со звёздами */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(2px 2px at 20% 30%, white, transparent),
+                radial-gradient(2px 2px at 60% 70%, white, transparent),
+                radial-gradient(1px 1px at 50% 50%, white, transparent),
+                radial-gradient(1px 1px at 80% 10%, white, transparent),
+                radial-gradient(2px 2px at 90% 60%, white, transparent),
+                radial-gradient(1px 1px at 33% 80%, white, transparent);
+            background-size: 200% 200%;
+            animation: twinkle 8s ease-in-out infinite;
+            opacity: 0.6;
+            z-index: 0;
+        }
+        
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 0.8; }
+        }
+        
+        .container { 
+            max-width: 400px; 
+            width: 100%; 
+            position: relative;
+            z-index: 1;
+        }
+        
+        /* Карточка с эффектом стекла */
         .card {
-            background: white;
-            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
             padding: 30px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            box-shadow: 
+                0 8px 32px rgba(0, 0, 0, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
             text-align: center;
-            animation: appear 0.6s ease-out;
+            animation: cardAppear 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
-        @keyframes appear {
-            from { opacity: 0; transform: translateY(30px); }
-            to { opacity: 1; transform: translateY(0); }
+        
+        @keyframes cardAppear {
+            0% { 
+                opacity: 0; 
+                transform: translateY(50px) scale(0.9); 
+            }
+            100% { 
+                opacity: 1; 
+                transform: translateY(0) scale(1); 
+            }
         }
+        
+        /* Изображение карты с свечением */
         .card-image {
             width: 100%;
-            height: 350px;
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            border-radius: 15px;
-            margin-bottom: 20px;
+            height: 380px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 20px;
+            margin-bottom: 25px;
             overflow: hidden;
             display: flex;
             align-items: center;
             justify-content: center;
+            box-shadow: 
+                0 0 40px rgba(102, 126, 234, 0.4),
+                0 0 80px rgba(118, 75, 162, 0.2);
+            position: relative;
         }
+        
+        .card-image::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(
+                45deg,
+                transparent 30%,
+                rgba(255, 255, 255, 0.1) 50%,
+                transparent 70%
+            );
+            animation: shimmer 3s infinite;
+        }
+        
+        @keyframes shimmer {
+            0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+            100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+        }
+        
         .card-image img {
             width: 100%;
             height: 100%;
             object-fit: contain;
+            position: relative;
+            z-index: 1;
         }
+        
+        /* Заголовок карты */
         .card-title {
-            font-size: 24px;
-            font-weight: bold;
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 32px;
+            font-weight: 700;
             margin-bottom: 15px;
-            color: #333;
+            color: #fff;
+            text-shadow: 0 2px 10px rgba(102, 126, 234, 0.5);
+            letter-spacing: 0.5px;
         }
+        
+        /* Описание */
         .card-description {
-            font-size: 16px;
-            line-height: 1.6;
-            color: #555;
+            font-size: 15px;
+            line-height: 1.7;
+            color: rgba(255, 255, 255, 0.8);
             margin-bottom: 20px;
+            font-weight: 300;
         }
+        
+        /* Дата/статус */
+        .card-date {
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 13px;
+            margin-bottom: 25px;
+            font-weight: 400;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+        
+        /* Кнопки */
         .btn {
             width: 100%;
-            padding: 15px;
+            padding: 16px;
             border: none;
-            border-radius: 10px;
-            font-size: 16px;
+            border-radius: 12px;
+            font-size: 15px;
             font-weight: 600;
             cursor: pointer;
-            margin-bottom: 10px;
-            transition: transform 0.1s;
+            margin-bottom: 12px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
         }
-        .btn:active { transform: scale(0.98); }
-        .btn-primary { background: #667eea; color: white; }
-        .btn-secondary { background: #f0f0f0; color: #333; }
-        .btn-share { background: #2AABEE; color: white; }
-        .btn-story { background: #E0F2FE; color: #0369A1; }
         
-        .info {
-            background: rgba(255,255,255,0.95);
-            padding: 25px;
-            border-radius: 15px;
-            text-align: center;
-            color: #333;
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
         }
-        .info h2 { margin-bottom: 10px; font-size: 22px; }
-        .info p { margin-bottom: 20px; color: #666; }
-        .loading { color: white; text-align: center; font-size: 18px; }
+        
+        .btn:active::before {
+            width: 300px;
+            height: 300px;
+        }
+        
+        .btn:active { 
+            transform: scale(0.97); 
+        }
+        
+        .btn-primary { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-primary:hover {
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+            transform: translateY(-2px);
+        }
+        
+        .btn-secondary { 
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+        
+        .btn-share { 
+            background: linear-gradient(135deg, #2AABEE 0%, #229ED9 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(42, 171, 238, 0.4);
+        }
+        
+        .btn-story { 
+            background: linear-gradient(135deg, #E0F2FE 0%, #BAE6FD 100%);
+            color: #0369A1;
+            box-shadow: 0 4px 15px rgba(224, 242, 254, 0.3);
+        }
+        
+        /* Экран без доступа */
+        .info {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 35px 25px;
+            border-radius: 24px;
+            text-align: center;
+            color: white;
+            animation: cardAppear 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        
+        .info h2 { 
+            margin-bottom: 15px; 
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 28px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .info p { 
+            margin-bottom: 25px; 
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 15px;
+            line-height: 1.6;
+        }
+        
+        /* Загрузка */
+        .loading { 
+            color: rgba(255, 255, 255, 0.6); 
+            text-align: center; 
+            font-size: 18px;
+            font-weight: 300;
+            letter-spacing: 2px;
+        }
         
         /* Модалка */
         .modal-bg {
@@ -91,44 +270,111 @@
             position: fixed;
             top: 0; left: 0;
             width: 100%; height: 100%;
-            background: rgba(0,0,0,0.7);
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
             z-index: 9999;
             align-items: center;
             justify-content: center;
+            animation: fadeIn 0.3s ease;
         }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
         .modal-bg.active { display: flex; }
+        
         .modal-box {
-            background: white;
-            border-radius: 15px;
-            padding: 30px;
-            max-width: 300px;
+            background: rgba(30, 30, 40, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 35px;
+            max-width: 320px;
             text-align: center;
-            animation: appear 0.3s ease-out;
+            animation: modalAppear 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
-        .modal-box p { margin-bottom: 20px; font-size: 16px; color: #333; }
+        
+        @keyframes modalAppear {
+            0% { 
+                opacity: 0; 
+                transform: scale(0.8); 
+            }
+            100% { 
+                opacity: 1; 
+                transform: scale(1); 
+            }
+        }
+        
+        .modal-box p { 
+            margin-bottom: 25px; 
+            font-size: 16px; 
+            color: rgba(255, 255, 255, 0.9);
+            line-height: 1.5;
+        }
+        
         .modal-box button {
-            background: #667eea;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border: none;
-            padding: 12px 30px;
-            border-radius: 8px;
+            padding: 14px 35px;
+            border-radius: 12px;
             font-size: 16px;
+            font-weight: 600;
             cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .modal-box button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+        
+        /* Декоративные элементы */
+        .stars {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+        }
+        
+        .star {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: white;
+            border-radius: 50%;
+            animation: float 10s infinite ease-in-out;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0) translateX(0); opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { transform: translateY(-100vh) translateX(50px); opacity: 0; }
         }
     </style>
 </head>
 <body>
+    <!-- Анимированные звёзды на фоне -->
+    <div class="stars" id="stars"></div>
+    
     <div class="container">
-        <div id="loading" class="loading">Загрузка...</div>
+        <div id="loading" class="loading">ЗАГРУЗКА...</div>
         
         <div id="noAccess" class="info" style="display:none;">
-            <h2>🎴 Карта дня</h2>
-            <p>Получайте одну уникальную карту каждый день.<br>50 карт — 50 дней без повторов!</p>
+            <h2>🎴 Карта Дня</h2>
+            <p>Узнайте послание, которое подготовила для вас вселенная сегодня.<br>50 уникальных карт — 50 дней открытий.</p>
             <button class="btn btn-primary" onclick="watchAd()">
-                📺 Получить карту (бесплатно)
+                ✨ Получить карту бесплатно
             </button>
             <button class="btn btn-secondary" onclick="subscribe()">
-                💎 Подписка 100₽/мес (без рекламы)
+                💎 Подписка без рекламы
             </button>
         </div>
         
@@ -138,12 +384,11 @@
             </div>
             <h2 class="card-title" id="cardTitle"></h2>
             <p class="card-description" id="cardDescription"></p>
-            <p style="color:#999; font-size:14px; margin-bottom: 25px;" id="cardDate"></p>
+            <p class="card-date" id="cardDate"></p>
             
-            <!-- Кнопки шеринга -->
-            <div style="display: flex; flex-direction: column; gap: 10px;">
+            <div style="display: flex; flex-direction: column; gap: 12px;">
                 <button class="btn btn-share" onclick="shareCard()">
-                     Поделиться с другом
+                    📤 Поделиться с другом
                 </button>
                 <button class="btn btn-story" onclick="shareToStory()">
                     📸 Опубликовать в Истории
@@ -156,13 +401,12 @@
     <div id="modal" class="modal-bg">
         <div class="modal-box">
             <p id="modalText"></p>
-            <button id="modalBtn">OK</button>
+            <button id="modalBtn">Продолжить</button>
         </div>
     </div>
 
     <script>
-        // Имя твоего бота (без символа @)
-        const BOT_USERNAME = 'Card_of_the_days_bot'; 
+        const BOT_USERNAME = 'Card_of_the_days_bot';
         
         const tg = window.Telegram?.WebApp;
         if (tg) {
@@ -173,6 +417,21 @@
         const userId = (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) 
             ? tg.initDataUnsafe.user.id 
             : 'test_user_123';
+        
+        // Создаём анимированные звёзды
+        function createStars() {
+            const starsContainer = document.getElementById('stars');
+            for (let i = 0; i < 50; i++) {
+                const star = document.createElement('div');
+                star.className = 'star';
+                star.style.left = Math.random() * 100 + '%';
+                star.style.top = Math.random() * 100 + '%';
+                star.style.animationDelay = Math.random() * 10 + 's';
+                star.style.animationDuration = (Math.random() * 10 + 10) + 's';
+                starsContainer.appendChild(star);
+            }
+        }
+        createStars();
         
         let modalCallback = null;
         
@@ -214,15 +473,15 @@
                 document.getElementById('cardTitle').textContent = data.card.title;
                 document.getElementById('cardDescription').textContent = data.card.description;
                 document.getElementById('cardDate').textContent = 
-                    data.alreadyReceived ? '✨ Ваша карта на сегодня' : '🎉 Новая карта!';
+                    data.alreadyReceived ? '✨ Ваше послание на сегодня' : ' Новое послание';
             } catch (e) {
                 document.getElementById('loading').style.display = 'none';
-                showModal('Ошибка загрузки. Попробуйте позже.', null);
+                showModal('Что-то пошло не так. Попробуйте позже.', null);
             }
         }
         
         async function watchAd() {
-            showModal('Нажмите OK, чтобы получить карту.', async function() {
+            showModal('Нажмите "Продолжить", чтобы получить вашу карту.', async function() {
                 try {
                     const res = await fetch('/api/watch-ad', {
                         method: 'POST',
@@ -239,7 +498,7 @@
         }
         
         async function subscribe() {
-            showModal('Подписка 100₽/мес. Оплата скоро будет доступна.', async function() {
+            showModal('Подписка скоро будет доступна. Следите за обновлениями!', async function() {
                 try {
                     const res = await fetch('/api/subscribe', {
                         method: 'POST',
@@ -255,10 +514,9 @@
             });
         }
 
-        // === ФУНКЦИИ ШЕРИНГА ===
         function shareCard() {
             const title = document.getElementById('cardTitle').textContent;
-            const text = `Я вытянул карту дня: "${title}" 🎴\n\nПопробуй и ты получить свою карту!`;
+            const text = `Я получил карту дня: "${title}" 🎴\n\nУзнай своё послание!`;
             const url = `https://t.me/${BOT_USERNAME}`;
             const shareLink = `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`;
             
@@ -273,7 +531,6 @@
             const title = document.getElementById('cardTitle').textContent;
             const text = `Моя карта дня: "${title}" `;
             const url = `https://t.me/${BOT_USERNAME}`;
-            // Ссылка для создания Истории в Telegram
             const storyLink = `https://t.me/share/story?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`;
             
             if (tg && tg.openTelegramLink) {
