@@ -554,44 +554,32 @@ document.getElementById('cardImage').src = SUPABASE_STORAGE_URL + '/' + data.car
     const text = `Моя карта дня: "${title}" 🎴`;
     const url = `https://t.me/${BOT_USERNAME}`;
     
-    // Шаг 1: Показываем, что начали
-    showModal('⏳ Загрузка картинки...', null);
-    
     try {
-        // Шаг 2: Проверяем URL
-        if (!imageUrl || imageUrl === '') {
-            showModal(' Картинка не загружена.\n\nURL: ' + imageUrl, null);
-            return;
-        }
+        // Загружаем картинку
+        const response = await fetch(imageUrl);
+        const blob = await response.blob();
         
-        // Шаг 3: Пытаемся загрузить как Blob
-        let blob;
-        try {
-            const response = await fetch(imageUrl);
-            if (!response.ok) {
-                throw new Error('HTTP ' + response.status);
+        // Пробуем Web Share API (работает на Android)
+        if (navigator.share && navigator.canShare) {
+            try {
+                const file = new File([blob], `card-${title}.jpg`, { type: 'image/jpeg' });
+                
+                if (navigator.canShare({ files: [file] })) {
+                    await navigator.share({
+                        title: 'Карта дня',
+                        text: text,
+                        files: [file]
+                    });
+                    return;
+                }
+            } catch (e) {
+                console.log('Web Share API error:', e);
+                // Если отменили — не показываем ошибку
+                if (e.name === 'AbortError') return;
             }
-            blob = await response.blob();
-        } catch (fetchError) {
-            showModal(
-                '❌ Не удалось загрузить картинку:\n\n' +
-                'URL: ' + imageUrl + '\n\n' +
-                'Ошибка: ' + fetchError.message + '\n\n' +
-                '👉 Убедись, что bucket в Supabase публичный!',
-                null
-            );
-            return;
         }
         
-        // Шаг 4: Проверяем blob
-        if (!blob || blob.size === 0) {
-            showModal('❌ Картинка пустая (размер 0 байт)', null);
-            return;
-        }
-        
-        showModal('✅ Картинка загружена!\nРазмер: ' + (blob.size / 1024).toFixed(1) + ' KB\nТип: ' + blob.type, null);
-        
-        // Шаг 5: Проверяем метод shareToStory
+        // Пробуем tg.shareToStory
         if (tg && typeof tg.shareToStory === 'function') {
             try {
                 tg.shareToStory({
@@ -606,26 +594,28 @@ document.getElementById('cardImage').src = SUPABASE_STORAGE_URL + '/' + data.car
                     }
                 });
                 return;
-            } catch (storyError) {
-                showModal(
-                    '❌ shareToStory не сработал:\n\n' +
-                    storyError.message + '\n\n' +
-                    'Попробуй обновить Telegram.',
-                    null
-                );
-                return;
+            } catch (e) {
+                console.log('tg.shareToStory error:', e);
             }
-        } else {
-            showModal(
-                '⚠️ Метод shareToStory недоступен в твоей версии Telegram.\n\n' +
-                'Версия Telegram: ' + (tg?.version || 'неизвестна') + '\n\n' +
-                'Обнови Telegram до последней версии.',
-                null
-            );
-            return;
         }
+        
+        // Если ничего не работает — показываем кнопку скачать
+        showModal(
+            '📥 Картинка готова!\n\n' +
+            'Нажми "Скачать", чтобы сохранить на телефон.\n' +
+            'Потом открой Telegram → Stories и выбери этот файл.',
+            function() {
+                // Скачиваем картинку
+                const link = document.createElement('a');
+                link.href = imageUrl;
+                link.download = `card-${title}.jpg`;
+                link.target = '_blank';
+                link.click();
+            }
+        );
+        
     } catch (e) {
-        showModal('💥 Неожиданная ошибка:\n\n' + e.message, null);
+        showModal('❌ Ошибка: ' + e.message, null);
     }
 }
         
