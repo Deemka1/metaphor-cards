@@ -135,12 +135,11 @@
     <div id="modal" class="modal-bg">
         <div class="modal-box">
             <p id="modalText"></p>
-            <button onclick="closeModal()">OK</button>
+            <button id="modalBtn">OK</button>
         </div>
     </div>
 
     <script>
-        // Инициализация Telegram — БЕЗ вызовов методов, которые могут не работать
         const tg = window.Telegram?.WebApp;
         if (tg) {
             try { tg.ready(); } catch(e) {}
@@ -151,14 +150,26 @@
             ? tg.initDataUnsafe.user.id 
             : 'test_user_123';
         
-        function showModal(text) {
+        // Переменная для хранения callback
+        let modalCallback = null;
+        
+        function showModal(text, callback) {
             document.getElementById('modalText').textContent = text;
             document.getElementById('modal').classList.add('active');
+            modalCallback = callback;
         }
         
         function closeModal() {
             document.getElementById('modal').classList.remove('active');
+            if (modalCallback) {
+                const cb = modalCallback;
+                modalCallback = null;
+                cb();
+            }
         }
+        
+        // Один обработчик на кнопку OK
+        document.getElementById('modalBtn').addEventListener('click', closeModal);
         
         async function loadCard() {
             try {
@@ -181,58 +192,43 @@
                 document.getElementById('cardTitle').textContent = data.card.title;
                 document.getElementById('cardDescription').textContent = data.card.description;
                 document.getElementById('cardDate').textContent = 
-                    data.alreadyReceived ? '✨ Ваша карта на сегодня' : ' Новая карта!';
+                    data.alreadyReceived ? '✨ Ваша карта на сегодня' : '🎉 Новая карта!';
             } catch (e) {
                 document.getElementById('loading').style.display = 'none';
-                showModal('Ошибка загрузки: ' + e.message);
+                showModal('Ошибка загрузки: ' + e.message, null);
             }
         }
         
         async function watchAd() {
-            showModal('Нажмите OK для получения карты.');
-            
-            // Ждём пока пользователь закроет модалку
-            document.getElementById('modal').onclick = async function(e) {
-                if (e.target === document.getElementById('modal') || e.target.tagName === 'BUTTON') {
-                    closeModal();
-                    document.getElementById('modal').onclick = null;
-                    
-                    try {
-                        await fetch('/api/watch-ad', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ userId: userId })
-                        });
-                        document.getElementById('noAccess').style.display = 'none';
-                        loadCard();
-                    } catch (e) {
-                        showModal('Ошибка: ' + e.message);
-                    }
+            showModal('Нажмите OK для получения карты.', async function() {
+                try {
+                    const res = await fetch('/api/watch-ad', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ userId: userId })
+                    });
+                    document.getElementById('noAccess').style.display = 'none';
+                    loadCard();
+                } catch (e) {
+                    showModal('Ошибка: ' + e.message, null);
                 }
-            };
+            });
         }
         
         async function subscribe() {
-            showModal('Подписка 100₽/мес. Здесь будет переход к оплате.');
-            
-            document.getElementById('modal').onclick = async function(e) {
-                if (e.target === document.getElementById('modal') || e.target.tagName === 'BUTTON') {
-                    closeModal();
-                    document.getElementById('modal').onclick = null;
-                    
-                    try {
-                        await fetch('/api/subscribe', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ userId: userId })
-                        });
-                        document.getElementById('noAccess').style.display = 'none';
-                        loadCard();
-                    } catch (e) {
-                        showModal('Ошибка: ' + e.message);
-                    }
+            showModal('Подписка 100₽/мес. Здесь будет переход к оплате.', async function() {
+                try {
+                    const res = await fetch('/api/subscribe', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ userId: userId })
+                    });
+                    document.getElementById('noAccess').style.display = 'none';
+                    loadCard();
+                } catch (e) {
+                    showModal('Ошибка: ' + e.message, null);
                 }
-            };
+            });
         }
         
         loadCard();
