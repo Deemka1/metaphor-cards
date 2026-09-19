@@ -2,14 +2,14 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Карта дня</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background: var(--tg-theme-bg-color, #667eea);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -18,16 +18,11 @@
         }
         .container { max-width: 400px; width: 100%; }
         .card {
-            background: var(--tg-theme-secondary-bg-color, white);
+            background: white;
             border-radius: 20px;
             padding: 30px;
             box-shadow: 0 20px 60px rgba(0,0,0,0.3);
             text-align: center;
-            animation: appear 0.6s ease-out;
-        }
-        @keyframes appear {
-            from { opacity: 0; transform: translateY(30px); }
-            to { opacity: 1; transform: translateY(0); }
         }
         .card-image {
             width: 100%;
@@ -49,53 +44,60 @@
             font-size: 24px;
             font-weight: bold;
             margin-bottom: 15px;
-            color: var(--tg-theme-text-color, #333);
+            color: #333;
         }
         .card-description {
             font-size: 16px;
             line-height: 1.6;
-            color: var(--tg-theme-hint-color, #555);
+            color: #555;
             margin-bottom: 20px;
         }
+        .btn {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-bottom: 10px;
+        }
+        .btn-primary { background: #667eea; color: white; }
+        .btn-secondary { background: #f0f0f0; color: #333; }
         .info {
-            background: var(--tg-theme-secondary-bg-color, rgba(255,255,255,0.95));
+            background: rgba(255,255,255,0.95);
             padding: 25px;
             border-radius: 15px;
             text-align: center;
-            color: var(--tg-theme-text-color, #333);
+            color: #333;
         }
         .info h2 { margin-bottom: 10px; font-size: 22px; }
-        .info p { margin-bottom: 20px; color: var(--tg-theme-hint-color, #666); }
-        .loading { 
-            color: var(--tg-theme-text-color, white); 
-            text-align: center; 
-            font-size: 18px; 
-        }
-        /* Модальное окно */
-        .modal-overlay {
+        .info p { margin-bottom: 20px; color: #666; }
+        .loading { color: white; text-align: center; font-size: 18px; }
+        
+        /* Модалка */
+        .modal-bg {
             display: none;
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
             background: rgba(0,0,0,0.7);
-            z-index: 1000;
+            z-index: 9999;
             align-items: center;
             justify-content: center;
         }
-        .modal {
-            background: var(--tg-theme-secondary-bg-color, white);
+        .modal-bg.active { display: flex; }
+        .modal-box {
+            background: white;
             border-radius: 15px;
             padding: 30px;
             max-width: 300px;
             text-align: center;
-            color: var(--tg-theme-text-color, #333);
         }
-        .modal p { margin-bottom: 20px; font-size: 16px; }
-        .modal-btn {
-            background: var(--tg-theme-button-color, #667eea);
-            color: var(--tg-theme-button-text-color, white);
+        .modal-box p { margin-bottom: 20px; font-size: 16px; color: #333; }
+        .modal-box button {
+            background: #667eea;
+            color: white;
             border: none;
             padding: 12px 30px;
             border-radius: 8px;
@@ -111,11 +113,11 @@
         <div id="noAccess" class="info" style="display:none;">
             <h2>🎴 Карта дня</h2>
             <p>Получайте одну уникальную карту каждый день.<br>50 карт — 50 дней без повторов!</p>
-            <button class="btn btn-primary" onclick="watchAd()" style="width:100%; padding:15px; border:none; border-radius:10px; font-size:16px; font-weight:600; cursor:pointer; margin-bottom:10px; background:var(--tg-theme-button-color, #667eea); color:var(--tg-theme-button-text-color, white);">
+            <button class="btn btn-primary" onclick="watchAd()">
                 📺 Посмотреть рекламу (бесплатно)
             </button>
-            <button class="btn btn-secondary" onclick="subscribe()" style="width:100%; padding:15px; border:none; border-radius:10px; font-size:16px; font-weight:600; cursor:pointer; background:var(--tg-theme-secondary-bg-color, #f0f0f0); color:var(--tg-theme-text-color, #333);">
-                💎 Подписка 100₽/мес (без рекламы)
+            <button class="btn btn-secondary" onclick="subscribe()">
+                 Подписка 100₽/мес (без рекламы)
             </button>
         </div>
         
@@ -125,36 +127,37 @@
             </div>
             <h2 class="card-title" id="cardTitle"></h2>
             <p class="card-description" id="cardDescription"></p>
-            <p style="color:var(--tg-theme-hint-color, #999); font-size:14px;" id="cardDate"></p>
+            <p style="color:#999; font-size:14px;" id="cardDate"></p>
         </div>
     </div>
 
-    <!-- Модальное окно -->
-    <div id="modal" class="modal-overlay">
-        <div class="modal">
+    <!-- Модалка -->
+    <div id="modal" class="modal-bg">
+        <div class="modal-box">
             <p id="modalText"></p>
-            <button class="modal-btn" onclick="closeModal()">OK</button>
+            <button onclick="closeModal()">OK</button>
         </div>
     </div>
 
     <script>
-        const tg = window.Telegram.WebApp;
-        tg.ready();
-        tg.expand();
+        // Инициализация Telegram — БЕЗ вызовов методов, которые могут не работать
+        const tg = window.Telegram?.WebApp;
+        if (tg) {
+            try { tg.ready(); } catch(e) {}
+            try { tg.expand(); } catch(e) {}
+        }
         
-        const userId = tg.initDataUnsafe?.user?.id || 'test_user_123';
+        const userId = (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) 
+            ? tg.initDataUnsafe.user.id 
+            : 'test_user_123';
         
         function showModal(text) {
             document.getElementById('modalText').textContent = text;
-            document.getElementById('modal').style.display = 'flex';
-            // Вибрация для тактильного отклика
-            if (tg.HapticFeedback) {
-                tg.HapticFeedback.notificationOccurred('success');
-            }
+            document.getElementById('modal').classList.add('active');
         }
         
         function closeModal() {
-            document.getElementById('modal').style.display = 'none';
+            document.getElementById('modal').classList.remove('active');
         }
         
         async function loadCard() {
@@ -162,7 +165,7 @@
                 const res = await fetch('/api/get-card', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ userId })
+                    body: JSON.stringify({ userId: userId })
                 });
                 
                 document.getElementById('loading').style.display = 'none';
@@ -178,7 +181,7 @@
                 document.getElementById('cardTitle').textContent = data.card.title;
                 document.getElementById('cardDescription').textContent = data.card.description;
                 document.getElementById('cardDate').textContent = 
-                    data.alreadyReceived ? '✨ Ваша карта на сегодня' : '🎉 Новая карта!';
+                    data.alreadyReceived ? '✨ Ваша карта на сегодня' : ' Новая карта!';
             } catch (e) {
                 document.getElementById('loading').style.display = 'none';
                 showModal('Ошибка загрузки: ' + e.message);
@@ -188,39 +191,48 @@
         async function watchAd() {
             showModal('Нажмите OK для получения карты.');
             
-            setTimeout(async () => {
-                try {
-                    await fetch('/api/watch-ad', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ userId })
-                    });
+            // Ждём пока пользователь закроет модалку
+            document.getElementById('modal').onclick = async function(e) {
+                if (e.target === document.getElementById('modal') || e.target.tagName === 'BUTTON') {
+                    closeModal();
+                    document.getElementById('modal').onclick = null;
                     
-                    document.getElementById('noAccess').style.display = 'none';
-                    loadCard();
-                } catch (e) {
-                    showModal('Ошибка: ' + e.message);
+                    try {
+                        await fetch('/api/watch-ad', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ userId: userId })
+                        });
+                        document.getElementById('noAccess').style.display = 'none';
+                        loadCard();
+                    } catch (e) {
+                        showModal('Ошибка: ' + e.message);
+                    }
                 }
-            }, 1000);
+            };
         }
         
         async function subscribe() {
             showModal('Подписка 100₽/мес. Здесь будет переход к оплате.');
             
-            setTimeout(async () => {
-                try {
-                    await fetch('/api/subscribe', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ userId })
-                    });
+            document.getElementById('modal').onclick = async function(e) {
+                if (e.target === document.getElementById('modal') || e.target.tagName === 'BUTTON') {
+                    closeModal();
+                    document.getElementById('modal').onclick = null;
                     
-                    document.getElementById('noAccess').style.display = 'none';
-                    loadCard();
-                } catch (e) {
-                    showModal('Ошибка: ' + e.message);
+                    try {
+                        await fetch('/api/subscribe', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ userId: userId })
+                        });
+                        document.getElementById('noAccess').style.display = 'none';
+                        loadCard();
+                    } catch (e) {
+                        showModal('Ошибка: ' + e.message);
+                    }
                 }
-            }, 1000);
+            };
         }
         
         loadCard();
