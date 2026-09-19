@@ -255,6 +255,83 @@ app.get('/api/status/:userId', async (req, res) => {
     }
 });
 
+// ===== ЕЖЕДНЕВНЫЕ НАПОМИНАНИЯ =====
+const BOT_TOKEN = process.env.BOT_TOKEN || '';
+const REMINDER_SECRET = 'my_secret_key_2026';
+const APP_URL = 'https://metaphor-cards.onrender.com';
+
+app.get('/api/send-reminders', async (req, res) => {
+    // Защита: вызвать может только тот, кто знает секретный ключ
+    if (req.query.key !== REMINDER_SECRET) {
+        return res.status(403).json({ error: 'Forbidden' });
+    }
+    
+    if (!BOT_TOKEN) {
+        return res.status(500).json({ error: 'BOT_TOKEN не задан в Environment' });
+    }
+    
+    try {
+        const today = getToday();
+        let users = [];
+        
+        // Получаем всех пользователей из Supabase
+        if (USE_SUPABASE) {
+            const result = await supabaseQuery('GET', 'users?select=user_id,access_date');
+            if (Array.isArray(result)) {
+                // Оставляем только тех, кто сегодня ещё НЕ получал карту
+                users = result
+                    .filter(u => u.access_date !== today)
+                    .map(u => u.user_id);
+            }
+        } else {
+            const db = loadLocalDB();
+            users = Object.keys(db).filter(id => db[id].access_date !== today);
+        }
+        
+        let sent = 0, failed = 0;
+        
+        for (const userId of users) {
+            // Пропускаем тестовых пользователей
+            if (String(userId).startsWith('test_')) continue;
+            
+            try {
+                const response = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        chat_id: userId,
+                        text: '🎴 <b>Твоя карта дня готова!</b>\n\nВселенная приготовила для тебя новое послание. Нажми кнопку, чтобы открыть его.',
+                        parse_mode: 'HTML',
+                        reply_markup: {
+                            inline_keyboard: [[{
+                                text: '🎴 Получить карту',
+                                web_app: { url: APP_URL }
+                            }]]
+                        }
+                    })
+                });
+                
+                if (response.ok) {
+                    sent++;
+                } else {
+                    failed++;
+                }
+                
+                // Пауза 100мс, чтобы не превысить лимиты Telegram
+                await new Promise(r => setTimeout(r, 100));
+            } catch (e) {
+                failed++;
+            }
+        }
+        
+        console.log(`📨 Напоминания: отправлено ${sent}, ошибок ${failed}`);
+        res.json({ success: true, sent, failed, total: users.length });
+    } catch (e) {
+        console.error('❌ Ошибка напоминаний:', e.message);
+        res.status(500).json({ error: e.message });
+    }
+});
+
 app.listen(PORT, () => {
     console.log(`✅ Сервер запущен на http://localhost:${PORT}`);
 });
