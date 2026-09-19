@@ -21,7 +21,6 @@
             position: relative;
         }
         
-        /* Анимированный фон со звёздами */
         body::before {
             content: '';
             position: fixed;
@@ -54,7 +53,6 @@
             z-index: 1;
         }
         
-        /* Карточка с эффектом стекла */
         .card {
             background: rgba(255, 255, 255, 0.05);
             backdrop-filter: blur(20px);
@@ -79,7 +77,6 @@
             }
         }
         
-        /* Изображение карты с свечением */
         .card-image {
             width: 100%;
             height: 380px;
@@ -125,7 +122,6 @@
             z-index: 1;
         }
         
-        /* Заголовок карты */
         .card-title {
             font-family: 'Cormorant Garamond', serif;
             font-size: 32px;
@@ -136,7 +132,6 @@
             letter-spacing: 0.5px;
         }
         
-        /* Описание */
         .card-description {
             font-size: 15px;
             line-height: 1.7;
@@ -145,7 +140,6 @@
             font-weight: 300;
         }
         
-        /* Дата/статус */
         .card-date {
             color: rgba(255, 255, 255, 0.5);
             font-size: 13px;
@@ -155,7 +149,6 @@
             text-transform: uppercase;
         }
         
-        /* === НОВЫЕ КНОПКИ === */
         .btn {
             width: 100%;
             padding: 16px 20px;
@@ -175,7 +168,6 @@
             letter-spacing: 0.3px;
         }
         
-        /* Эффект волны при нажатии */
         .btn::before {
             content: '';
             position: absolute;
@@ -198,7 +190,6 @@
             transform: scale(0.96); 
         }
         
-        /* Основная кнопка (получить карту) */
         .btn-primary { 
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
@@ -214,7 +205,6 @@
             transform: translateY(-2px);
         }
         
-        /* Вторичная кнопка (подписка) */
         .btn-secondary { 
             background: rgba(255, 255, 255, 0.08);
             color: rgba(255, 255, 255, 0.9);
@@ -228,7 +218,6 @@
             transform: translateY(-2px);
         }
         
-        /* Кнопка "Поделиться" - синий градиент */
         .btn-share { 
             background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
             color: white;
@@ -244,7 +233,6 @@
             transform: translateY(-2px);
         }
         
-        /* Кнопка "История" - фиолетово-розовый градиент */
         .btn-story { 
             background: linear-gradient(135deg, #7c3aed 0%, #ec4899 100%);
             color: white;
@@ -260,9 +248,6 @@
             transform: translateY(-2px);
         }
         
-        /* === КОНЕЦ НОВЫХ КНОПОК === */
-        
-        /* Экран без доступа */
         .info {
             background: rgba(255, 255, 255, 0.05);
             backdrop-filter: blur(20px);
@@ -292,7 +277,6 @@
             line-height: 1.6;
         }
         
-        /* Загрузка */
         .loading { 
             color: rgba(255, 255, 255, 0.6); 
             text-align: center; 
@@ -301,7 +285,6 @@
             letter-spacing: 2px;
         }
         
-        /* Модалка */
         .modal-bg {
             display: none;
             position: fixed;
@@ -369,7 +352,6 @@
             box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
         }
         
-        /* Декоративные элементы */
         .stars {
             position: fixed;
             top: 0;
@@ -398,7 +380,6 @@
     </style>
 </head>
 <body>
-    <!-- Анимированные звёзды на фоне -->
     <div class="stars" id="stars"></div>
     
     <div class="container">
@@ -408,7 +389,7 @@
             <h2>🎴 Карта Дня</h2>
             <p>Узнайте послание, которое подготовила для вас вселенная сегодня.<br>50 уникальных карт — 50 дней открытий.</p>
             <button class="btn btn-primary" onclick="watchAd()">
-                ✨ Получить карту бесплатно
+                 Получить карту бесплатно
             </button>
             <button class="btn btn-secondary" onclick="subscribe()">
                 💎 Подписка без рекламы
@@ -429,14 +410,13 @@
                     <span>Поделиться с другом</span>
                 </button>
                 <button class="btn btn-story" onclick="shareToStory()">
-                    <span></span>
+                    <span>📸</span>
                     <span>Опубликовать в Истории</span>
                 </button>
             </div>
         </div>
     </div>
 
-    <!-- Модалка -->
     <div id="modal" class="modal-bg">
         <div class="modal-box">
             <p id="modalText"></p>
@@ -457,7 +437,6 @@
             ? tg.initDataUnsafe.user.id 
             : 'test_user_123';
         
-        // Создаём анимированные звёзды
         function createStars() {
             const starsContainer = document.getElementById('stars');
             for (let i = 0; i < 50; i++) {
@@ -555,7 +534,7 @@
 
         function shareCard() {
             const title = document.getElementById('cardTitle').textContent;
-            const text = `Я получил карту дня: "${title}" 🎴\n\nУзнай своё послание!`;
+            const text = `Я получил карту дня: "${title}" \n\nУзнай своё послание!`;
             const url = `https://t.me/${BOT_USERNAME}`;
             const shareLink = `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`;
             
@@ -566,17 +545,68 @@
             }
         }
 
-        function shareToStory() {
+        async function shareToStory() {
             const title = document.getElementById('cardTitle').textContent;
-            const text = `Моя карта дня: "${title}" `;
+            const imageUrl = document.getElementById('cardImage').src;
+            const text = `Моя карта дня: "${title}" 🎴`;
             const url = `https://t.me/${BOT_USERNAME}`;
-            const storyLink = `https://t.me/share/story?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`;
             
-            if (tg && tg.openTelegramLink) {
-                tg.openTelegramLink(storyLink);
-            } else {
-                window.open(storyLink, '_blank');
+            // Пробуем использовать нативный метод Telegram для Stories
+            if (tg && tg.shareToStory) {
+                try {
+                    // Загружаем изображение как blob
+                    const response = await fetch(imageUrl);
+                    const blob = await response.blob();
+                    
+                    // Создаём объект media для shareToStory
+                    const media = {
+                        type: 'photo',
+                        data: blob
+                    };
+                    
+                    // Вызываем shareToStory
+                    tg.shareToStory({
+                        media: media,
+                        text: text,
+                        widget_link: {
+                            url: url,
+                            name: 'Карта дня'
+                        }
+                    });
+                    
+                    return;
+                } catch (e) {
+                    console.log('shareToStory не сработал, пробуем альтернативу');
+                }
             }
+            
+            // Альтернатива: используем navigator.share (нативный шеринг на мобильных)
+            if (navigator.share) {
+                try {
+                    const response = await fetch(imageUrl);
+                    const blob = await response.blob();
+                    const file = new File([blob], 'card.jpg', { type: 'image/jpeg' });
+                    
+                    await navigator.share({
+                        title: 'Карта дня',
+                        text: text,
+                        files: [file]
+                    });
+                    return;
+                } catch (e) {
+                    console.log('navigator.share не сработал');
+                }
+            }
+            
+            // Если ничего не работает — показываем инструкцию
+            showModal(
+                'Чтобы опубликовать в Истории:\n\n' +
+                '1. Сделайте скриншот этой карты\n' +
+                '2. Откройте Telegram → Stories\n' +
+                '3. Выберите скриншот и опубликуйте\n\n' +
+                'Или нажмите "Поделиться с другом", чтобы отправить карту в чат.',
+                null
+            );
         }
         
         loadCard();
