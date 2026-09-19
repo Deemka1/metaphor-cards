@@ -488,7 +488,8 @@
                 
                 const data = await res.json();
                 document.getElementById('cardView').style.display = 'block';
-                document.getElementById('cardImage').src = '/images/' + data.card.image;
+                const SUPABASE_STORAGE_URL = 'https://mmyfzresvqvluwcigxgi.supabase.co/storage/v1/object/public/cards';
+document.getElementById('cardImage').src = SUPABASE_STORAGE_URL + '/' + data.card.image;
                 document.getElementById('cardTitle').textContent = data.card.title;
                 document.getElementById('cardDescription').textContent = data.card.description;
                 document.getElementById('cardDate').textContent = 
