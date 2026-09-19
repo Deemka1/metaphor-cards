@@ -578,7 +578,7 @@ function downloadCard() {
         const title = document.getElementById('cardTitle').textContent;
         const imageUrl = document.getElementById('cardImage').src;
         
-        // Пробуем скачать через link
+        // Открываем картинку в новой вкладке
         const link = document.createElement('a');
         link.href = imageUrl;
         link.download = 'card-' + title + '.jpg';
@@ -588,7 +588,10 @@ function downloadCard() {
         link.click();
         document.body.removeChild(link);
         
-        // Показываем подсказку
+        // ВОЗВРАЩАЕМ кнопку "Продолжить" перед показом модалки
+        document.getElementById('modalBtn').style.display = 'inline-block';
+        document.getElementById('modalBtn').textContent = 'Понятно';
+        
         showModal(
             '✅ Картинка открыта в новой вкладке!\n\n' +
             'Нажми на неё и удерживай палец → выбери "Сохранить изображение".\n\n' +
