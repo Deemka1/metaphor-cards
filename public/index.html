@@ -332,6 +332,7 @@
             font-size: 16px; 
             color: rgba(255, 255, 255, 0.9);
             line-height: 1.5;
+            white-space: pre-line;
         }
         
         .modal-box button {
@@ -389,7 +390,7 @@
             <h2>🎴 Карта Дня</h2>
             <p>Узнайте послание, которое подготовила для вас вселенная сегодня.<br>50 уникальных карт — 50 дней открытий.</p>
             <button class="btn btn-primary" onclick="watchAd()">
-                 Получить карту бесплатно
+                ✨ Получить карту бесплатно
             </button>
             <button class="btn btn-secondary" onclick="subscribe()">
                 💎 Подписка без рекламы
@@ -406,7 +407,7 @@
             
             <div style="display: flex; flex-direction: column; gap: 12px;">
                 <button class="btn btn-share" onclick="shareCard()">
-                    <span>📤</span>
+                    <span></span>
                     <span>Поделиться с другом</span>
                 </button>
                 <button class="btn btn-story" onclick="shareToStory()">
@@ -534,7 +535,7 @@
 
         function shareCard() {
             const title = document.getElementById('cardTitle').textContent;
-            const text = `Я получил карту дня: "${title}" \n\nУзнай своё послание!`;
+            const text = `Я получил карту дня: "${title}" 🎴\n\nУзнай своё послание!`;
             const url = `https://t.me/${BOT_USERNAME}`;
             const shareLink = `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`;
             
@@ -551,59 +552,39 @@
             const text = `Моя карта дня: "${title}" 🎴`;
             const url = `https://t.me/${BOT_USERNAME}`;
             
-            // Пробуем использовать нативный метод Telegram для Stories
-            if (tg && tg.shareToStory) {
+            // Проверяем, доступен ли метод shareToStory
+            if (tg && typeof tg.shareToStory === 'function') {
                 try {
                     // Загружаем изображение как blob
                     const response = await fetch(imageUrl);
                     const blob = await response.blob();
                     
-                    // Создаём объект media для shareToStory
-                    const media = {
-                        type: 'photo',
-                        data: blob
-                    };
-                    
-                    // Вызываем shareToStory
+                    // Вызываем shareToStory с правильными параметрами
                     tg.shareToStory({
-                        media: media,
+                        media: {
+                            type: 'photo',
+                            data: blob
+                        },
                         text: text,
                         widget_link: {
                             url: url,
                             name: 'Карта дня'
                         }
                     });
-                    
                     return;
                 } catch (e) {
-                    console.log('shareToStory не сработал, пробуем альтернативу');
+                    console.log('shareToStory error:', e);
                 }
             }
             
-            // Альтернатива: используем navigator.share (нативный шеринг на мобильных)
-            if (navigator.share) {
-                try {
-                    const response = await fetch(imageUrl);
-                    const blob = await response.blob();
-                    const file = new File([blob], 'card.jpg', { type: 'image/jpeg' });
-                    
-                    await navigator.share({
-                        title: 'Карта дня',
-                        text: text,
-                        files: [file]
-                    });
-                    return;
-                } catch (e) {
-                    console.log('navigator.share не сработал');
-                }
-            }
-            
-            // Если ничего не работает — показываем инструкцию
+            // Если shareToStory недоступен — показываем инструкцию
             showModal(
-                'Чтобы опубликовать в Истории:\n\n' +
+                ' Как опубликовать в Истории:\n\n' +
                 '1. Сделайте скриншот этой карты\n' +
-                '2. Откройте Telegram → Stories\n' +
-                '3. Выберите скриншот и опубликуйте\n\n' +
+                '2. Откройте Telegram\n' +
+                '3. Перейдите в Stories\n' +
+                '4. Выберите скриншот\n' +
+                '5. Добавьте текст и опубликуйте\n\n' +
                 'Или нажмите "Поделиться с другом", чтобы отправить карту в чат.',
                 null
             );
