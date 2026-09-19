@@ -549,48 +549,83 @@ document.getElementById('cardImage').src = SUPABASE_STORAGE_URL + '/' + data.car
 
         async function shareToStory() {
     const title = document.getElementById('cardTitle').textContent;
-    const imageUrl = document.getElementById('cardImage').src;
+    const imgElement = document.getElementById('cardImage');
+    const imageUrl = imgElement.src;
     const text = `Моя карта дня: "${title}" 🎴`;
     const url = `https://t.me/${BOT_USERNAME}`;
     
+    // Шаг 1: Показываем, что начали
+    showModal('⏳ Загрузка картинки...', null);
+    
     try {
-        // Загружаем картинку как Blob (теперь CORS разрешён)
-        const response = await fetch(imageUrl);
-        const blob = await response.blob();
+        // Шаг 2: Проверяем URL
+        if (!imageUrl || imageUrl === '') {
+            showModal(' Картинка не загружена.\n\nURL: ' + imageUrl, null);
+            return;
+        }
         
-        // Проверяем, доступен ли метод shareToStory
-        if (tg && typeof tg.shareToStory === 'function') {
-            tg.shareToStory({
-                media: {
-                    type: 'photo',
-                    data: blob
-                },
-                text: text,
-                widget_link: {
-                    url: url,
-                    name: 'Карта дня'
-                }
-            });
-        } else {
-            // Если метод недоступен — скачиваем картинку
-            const link = document.createElement('a');
-            link.href = imageUrl;
-            link.download = `card-${title}.jpg`;
-            link.click();
-            
+        // Шаг 3: Пытаемся загрузить как Blob
+        let blob;
+        try {
+            const response = await fetch(imageUrl);
+            if (!response.ok) {
+                throw new Error('HTTP ' + response.status);
+            }
+            blob = await response.blob();
+        } catch (fetchError) {
             showModal(
-                '📸 Картинка скачана!\n\n' +
-                'Теперь откройте Telegram → Stories и выберите этот файл.',
+                '❌ Не удалось загрузить картинку:\n\n' +
+                'URL: ' + imageUrl + '\n\n' +
+                'Ошибка: ' + fetchError.message + '\n\n' +
+                '👉 Убедись, что bucket в Supabase публичный!',
                 null
             );
+            return;
+        }
+        
+        // Шаг 4: Проверяем blob
+        if (!blob || blob.size === 0) {
+            showModal('❌ Картинка пустая (размер 0 байт)', null);
+            return;
+        }
+        
+        showModal('✅ Картинка загружена!\nРазмер: ' + (blob.size / 1024).toFixed(1) + ' KB\nТип: ' + blob.type, null);
+        
+        // Шаг 5: Проверяем метод shareToStory
+        if (tg && typeof tg.shareToStory === 'function') {
+            try {
+                tg.shareToStory({
+                    media: {
+                        type: 'photo',
+                        data: blob
+                    },
+                    text: text,
+                    widget_link: {
+                        url: url,
+                        name: 'Карта дня'
+                    }
+                });
+                return;
+            } catch (storyError) {
+                showModal(
+                    '❌ shareToStory не сработал:\n\n' +
+                    storyError.message + '\n\n' +
+                    'Попробуй обновить Telegram.',
+                    null
+                );
+                return;
+            }
+        } else {
+            showModal(
+                '⚠️ Метод shareToStory недоступен в твоей версии Telegram.\n\n' +
+                'Версия Telegram: ' + (tg?.version || 'неизвестна') + '\n\n' +
+                'Обнови Telegram до последней версии.',
+                null
+            );
+            return;
         }
     } catch (e) {
-        console.error('shareToStory error:', e);
-        showModal(
-            '❌ Не удалось загрузить картинку.\n\n' +
-            'Сделайте скриншот и опубликуйте его вручную.',
-            null
-        );
+        showModal('💥 Неожиданная ошибка:\n\n' + e.message, null);
     }
 }
         
