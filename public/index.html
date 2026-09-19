@@ -553,34 +553,13 @@ document.getElementById('cardImage').src = SUPABASE_STORAGE_URL + '/' + data.car
     const text = `Моя карта дня: "${title}" 🎴`;
     const url = `https://t.me/${BOT_USERNAME}`;
     
-    // Пробуем использовать нативный Web Share API (работает на мобильных)
-    if (navigator.share) {
-        try {
-            // Загружаем изображение
-            const response = await fetch(imageUrl);
-            const blob = await response.blob();
-            const file = new File([blob], 'card.jpg', { type: 'image/jpeg' });
-            
-            // Открываем системное меню шеринга
-            await navigator.share({
-                title: 'Карта дня',
-                text: text,
-                files: [file]
-            });
-            return;
-        } catch (e) {
-            console.log('navigator.share error:', e);
-            // Если пользователь отменил — не показываем ошибку
-            if (e.name === 'AbortError') return;
-        }
-    }
-    
-    // Если Web Share API недоступен — пробуем tg.shareToStory
-    if (tg && typeof tg.shareToStory === 'function') {
-        try {
-            const response = await fetch(imageUrl);
-            const blob = await response.blob();
-            
+    try {
+        // Загружаем картинку как Blob (теперь CORS разрешён)
+        const response = await fetch(imageUrl);
+        const blob = await response.blob();
+        
+        // Проверяем, доступен ли метод shareToStory
+        if (tg && typeof tg.shareToStory === 'function') {
             tg.shareToStory({
                 media: {
                     type: 'photo',
@@ -592,23 +571,27 @@ document.getElementById('cardImage').src = SUPABASE_STORAGE_URL + '/' + data.car
                     name: 'Карта дня'
                 }
             });
-            return;
-        } catch (e) {
-            console.log('tg.shareToStory error:', e);
+        } else {
+            // Если метод недоступен — скачиваем картинку
+            const link = document.createElement('a');
+            link.href = imageUrl;
+            link.download = `card-${title}.jpg`;
+            link.click();
+            
+            showModal(
+                '📸 Картинка скачана!\n\n' +
+                'Теперь откройте Telegram → Stories и выберите этот файл.',
+                null
+            );
         }
+    } catch (e) {
+        console.error('shareToStory error:', e);
+        showModal(
+            '❌ Не удалось загрузить картинку.\n\n' +
+            'Сделайте скриншот и опубликуйте его вручную.',
+            null
+        );
     }
-    
-    // Если ничего не работает — показываем инструкцию
-    showModal(
-        '📸 Как опубликовать в Истории:\n\n' +
-        '1. Сделайте скриншот этой карты\n' +
-        '2. Откройте Telegram\n' +
-        '3. Свайпните вправо (или нажмите на аватарку)\n' +
-        '4. Выберите скриншот\n' +
-        '5. Добавьте текст и опубликуйте\n\n' +
-        'Или нажмите "Поделиться с другом", чтобы отправить карту в чат.',
-        null
-    );
 }
         
         loadCard();
