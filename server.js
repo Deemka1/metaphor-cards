@@ -4,13 +4,12 @@ const path = require('path');
 const crypto = require('crypto');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 10000;
 
-// ===== ПРОВЕРКА SUPABASE =====
+// ===== НАСТРОЙКИ SUPABASE =====
 const SUPABASE_URL = process.env.SUPABASE_URL || '';
 const SUPABASE_KEY = process.env.SUPABASE_KEY || '';
 
-// Включаем Supabase ТОЛЬКО если заданы реальные значения
 const USE_SUPABASE = SUPABASE_URL.includes('.supabase.co') && 
                      SUPABASE_KEY.startsWith('eyJ') &&
                      !SUPABASE_URL.includes('ВАШ');
@@ -25,26 +24,20 @@ console.log('========================================\n');
 const cardsData = JSON.parse(fs.readFileSync(path.join(__dirname, 'cards.json'), 'utf-8'));
 const cards = cardsData.cards;
 
-// ===== ЛОКАЛЬНАЯ БД =====
+// ===== ЛОКАЛЬНАЯ БД (Fallback) =====
 const DB_PATH = path.join(__dirname, 'db.json');
 
 function loadLocalDB() {
-    try {
-        return JSON.parse(fs.readFileSync(DB_PATH, 'utf-8'));
-    } catch {
-        return {};
-    }
+    try { return JSON.parse(fs.readFileSync(DB_PATH, 'utf-8')); } 
+    catch { return {}; }
 }
 
 function saveLocalDB(db) {
-    try {
-        fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
-    } catch (e) {
-        console.error('❌ Ошибка записи db.json:', e.message);
-    }
+    try { fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2)); } 
+    catch (e) { console.error('❌ Ошибка записи db.json:', e.message); }
 }
 
-// ===== SUPABASE =====
+// ===== SUPABASE ФУНКЦИИ =====
 async function supabaseQuery(method, urlPath, body = null) {
     const url = `${SUPABASE_URL}/rest/v1/${urlPath}`;
     const headers = {
@@ -57,22 +50,16 @@ async function supabaseQuery(method, urlPath, body = null) {
     const options = { method, headers };
     if (body) options.body = JSON.stringify(body);
     
-    console.log(`  📡 ${method} ${urlPath}`);
-    
     const res = await fetch(url, options);
     const text = await res.text();
     
-    console.log(`  📥 Status: ${res.status}`);
     if (!res.ok) {
-        console.error(`  ❌ Response: ${text.slice(0, 300)}`);
-        throw new Error(`Supabase ${res.status}: ${text}`);
+        console.error(`  ❌ Supabase ${res.status}: ${text.slice(0, 200)}`);
+        throw new Error(`Supabase ${res.status}`);
     }
     
-    try {
-        return JSON.parse(text);
-    } catch {
-        return null;
-    }
+    try { return JSON.parse(text); } 
+    catch { return null; }
 }
 
 async function getUserSupabase(userId) {
@@ -87,14 +74,10 @@ async function getUserSupabase(userId) {
 
 async function saveUserSupabase(userId, data) {
     try {
-        // Сначала пробуем получить существующего
         const existing = await getUserSupabase(userId);
-        
         if (existing) {
-            // Обновляем
             await supabaseQuery('PATCH', `users?user_id=eq.${encodeURIComponent(userId)}`, data);
         } else {
-            // Создаём
             await supabaseQuery('POST', 'users', { user_id: userId, ...data });
         }
         return true;
@@ -128,7 +111,6 @@ function getToday() {
     return new Date().toISOString().split('T')[0];
 }
 
-// Нормализация данных пользователя (унифицируем поля из Supabase и локальной БД)
 function normalizeUser(user) {
     if (!user) return null;
     return {
@@ -165,21 +147,12 @@ async function saveUser(userId, data) {
 async function hasAccessToday(userId) {
     const today = getToday();
     const user = await getUser(userId);
-    
-    if (!user) {
-        console.log(`  🔍 hasAccessToday: пользователь ${userId} не найден`);
-        return false;
-    }
-    
-    const result = user.has_access === true && user.access_date === today;
-    console.log(`  🔍 hasAccessToday: has_access=${user.has_access}, access_date=${user.access_date}, today=${today} => ${result}`);
-    return result;
+    if (!user) return false;
+    return user.has_access === true && user.access_date === today;
 }
 
 async function grantAccess(userId) {
     const today = getToday();
-    console.log(`   grantAccess: userId=${userId}, today=${today}`);
-    
     const user = await getUser(userId);
     const cardIndex = user ? user.card_index : 0;
     
@@ -191,35 +164,25 @@ async function grantAccess(userId) {
         last_card_id: user ? user.last_card_id : null
     };
     
-    const success = await saveUser(userId, data);
-    console.log(`  ✅ grantAccess result: ${success}`);
-    return success;
+    return await saveUser(userId, data);
 }
 
 async function getTodayCard(userId) {
     const today = getToday();
     const user = await getUser(userId);
     
-    // Если сегодня уже получал — возвращаем ту же
     if (user && user.last_date === today && user.last_card_id) {
-        console.log(`  🃏 Возвращаем сохранённую карту: ${user.last_card_id}`);
         return cards.find(c => c.id === user.last_card_id);
     }
     
-    // Проверяем доступ
     if (!await hasAccessToday(userId)) {
-        console.log(`  🃏 Нет доступа на сегодня`);
         return null;
     }
     
-    // Берём следующую карту
     const order = getUserCardOrder(userId);
     const cardIndex = user ? user.card_index : 0;
     const card = order[cardIndex % order.length];
     
-    console.log(`  🃏 Новая карта: id=${card.id}, title="${card.title}", cardIndex=${cardIndex}`);
-    
-    // Сохраняем
     await saveUser(userId, {
         card_index: cardIndex + 1,
         last_date: today,
@@ -231,62 +194,48 @@ async function getTodayCard(userId) {
     return card;
 }
 
-// ===== API =====
+// ===== API МАРШРУТЫ =====
 app.use(express.json());
 app.use(express.static('public'));
 
 app.post('/api/get-card', async (req, res) => {
-    console.log('\n📥 POST /api/get-card');
     try {
         const { userId } = req.body;
         if (!userId) return res.status(400).json({ error: 'userId required' });
         
         if (await hasAccessToday(userId)) {
             const card = await getTodayCard(userId);
-            if (card) {
-                return res.json({ card, alreadyReceived: true });
-            }
+            if (card) return res.json({ card, alreadyReceived: true });
         }
-        
         return res.status(403).json({ error: 'no_access' });
     } catch (e) {
-        console.error('❌ Ошибка в get-card:', e.message);
+        console.error('❌ Ошибка get-card:', e.message);
         return res.status(500).json({ error: e.message });
     }
 });
 
 app.post('/api/watch-ad', async (req, res) => {
-    console.log('\n POST /api/watch-ad');
     try {
         const { userId } = req.body;
         if (!userId) return res.status(400).json({ error: 'userId required' });
         
         const success = await grantAccess(userId);
-        if (success) {
-            return res.json({ success: true });
-        } else {
-            return res.status(500).json({ error: 'Failed to save' });
-        }
+        return success ? res.json({ success: true }) : res.status(500).json({ error: 'Failed to save' });
     } catch (e) {
-        console.error('❌ Ошибка в watch-ad:', e.message);
+        console.error('❌ Ошибка watch-ad:', e.message);
         return res.status(500).json({ error: e.message });
     }
 });
 
 app.post('/api/subscribe', async (req, res) => {
-    console.log('\n📥 POST /api/subscribe');
     try {
         const { userId } = req.body;
         if (!userId) return res.status(400).json({ error: 'userId required' });
         
         const success = await grantAccess(userId);
-        if (success) {
-            return res.json({ success: true });
-        } else {
-            return res.status(500).json({ error: 'Failed to save' });
-        }
+        return success ? res.json({ success: true }) : res.status(500).json({ error: 'Failed to save' });
     } catch (e) {
-        console.error('❌ Ошибка в subscribe:', e.message);
+        console.error('❌ Ошибка subscribe:', e.message);
         return res.status(500).json({ error: e.message });
     }
 });
