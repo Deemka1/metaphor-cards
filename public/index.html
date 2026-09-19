@@ -548,74 +548,43 @@ document.getElementById('cardImage').src = SUPABASE_STORAGE_URL + '/' + data.car
         }
 
         async function shareToStory() {
-    const title = document.getElementById('cardTitle').textContent;
-    const imgElement = document.getElementById('cardImage');
-    const imageUrl = imgElement.src;
-    const text = `Моя карта дня: "${title}" 🎴`;
-    const url = `https://t.me/${BOT_USERNAME}`;
-    
     try {
-        // Загружаем картинку
-        const response = await fetch(imageUrl);
-        const blob = await response.blob();
+        const title = document.getElementById('cardTitle').textContent;
+        const imageUrl = document.getElementById('cardImage').src;
         
-        // Пробуем Web Share API (работает на Android)
-        if (navigator.share && navigator.canShare) {
-            try {
-                const file = new File([blob], `card-${title}.jpg`, { type: 'image/jpeg' });
-                
-                if (navigator.canShare({ files: [file] })) {
-                    await navigator.share({
-                        title: 'Карта дня',
-                        text: text,
-                        files: [file]
-                    });
-                    return;
-                }
-            } catch (e) {
-                console.log('Web Share API error:', e);
-                // Если отменили — не показываем ошибку
-                if (e.name === 'AbortError') return;
-            }
-        }
+        // Сразу показываем модалку с инструкцией и кнопкой скачать
+        document.getElementById('modalText').innerHTML = 
+            '📸 <b>Как опубликовать в Истории:</b><br><br>' +
+            '1. Нажми "Скачать карту" ниже<br>' +
+            '2. Открой Telegram<br>' +
+            '3. Перейди в Stories (свайп вправо)<br>' +
+            '4. Выбери скачанный файл<br>' +
+            '5. Опубликуй!<br><br>' +
+            '<button onclick="downloadCard()" style="width:100%;padding:14px;border:none;border-radius:10px;background:linear-gradient(135deg,#7c3aed,#ec4899);color:white;font-size:16px;font-weight:600;cursor:pointer;margin-bottom:10px;">💾 Скачать карту</button>' +
+            '<button onclick="closeModal()" style="width:100%;padding:14px;border:none;border-radius:10px;background:rgba(255,255,255,0.1);color:white;font-size:16px;font-weight:600;cursor:pointer;">Закрыть</button>';
         
-        // Пробуем tg.shareToStory
-        if (tg && typeof tg.shareToStory === 'function') {
-            try {
-                tg.shareToStory({
-                    media: {
-                        type: 'photo',
-                        data: blob
-                    },
-                    text: text,
-                    widget_link: {
-                        url: url,
-                        name: 'Карта дня'
-                    }
-                });
-                return;
-            } catch (e) {
-                console.log('tg.shareToStory error:', e);
-            }
-        }
-        
-        // Если ничего не работает — показываем кнопку скачать
-        showModal(
-            '📥 Картинка готова!\n\n' +
-            'Нажми "Скачать", чтобы сохранить на телефон.\n' +
-            'Потом открой Telegram → Stories и выбери этот файл.',
-            function() {
-                // Скачиваем картинку
-                const link = document.createElement('a');
-                link.href = imageUrl;
-                link.download = `card-${title}.jpg`;
-                link.target = '_blank';
-                link.click();
-            }
-        );
+        document.getElementById('modal').classList.add('active');
+        modalCallback = null;
         
     } catch (e) {
-        showModal('❌ Ошибка: ' + e.message, null);
+        alert('Ошибка: ' + e.message);
+    }
+}
+
+function downloadCard() {
+    try {
+        const title = document.getElementById('cardTitle').textContent;
+        const imageUrl = document.getElementById('cardImage').src;
+        
+        const link = document.createElement('a');
+        link.href = imageUrl;
+        link.download = 'card-' + title + '.jpg';
+        link.target = '_blank';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    } catch (e) {
+        alert('Не удалось скачать: ' + e.message);
     }
 }
         
