@@ -104,6 +104,22 @@
             font-size: 16px;
             cursor: pointer;
         }
+        
+        /* Лоадер */
+        .loader {
+            display: none;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
@@ -120,6 +136,8 @@
                  Подписка 100₽/мес (без рекламы)
             </button>
         </div>
+        
+        <div id="loader" class="loader"></div>
         
         <div id="cardView" class="card" style="display:none;">
             <div class="card-image">
@@ -140,26 +158,31 @@
     </div>
 
     <script>
+        console.log('[APP] Инициализация...');
+        
         const tg = window.Telegram?.WebApp;
         if (tg) {
-            try { tg.ready(); } catch(e) {}
-            try { tg.expand(); } catch(e) {}
+            try { tg.ready(); console.log('[Telegram] ready'); } catch(e) { console.error('[Telegram] ready error:', e); }
+            try { tg.expand(); console.log('[Telegram] expand'); } catch(e) { console.error('[Telegram] expand error:', e); }
         }
         
         const userId = (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) 
             ? tg.initDataUnsafe.user.id 
             : 'test_user_123';
         
-        // Переменная для хранения callback
+        console.log('[APP] userId:', userId);
+        
         let modalCallback = null;
         
         function showModal(text, callback) {
+            console.log('[Modal] show:', text);
             document.getElementById('modalText').textContent = text;
             document.getElementById('modal').classList.add('active');
             modalCallback = callback;
         }
         
         function closeModal() {
+            console.log('[Modal] close');
             document.getElementById('modal').classList.remove('active');
             if (modalCallback) {
                 const cb = modalCallback;
@@ -168,25 +191,30 @@
             }
         }
         
-        // Один обработчик на кнопку OK
         document.getElementById('modalBtn').addEventListener('click', closeModal);
         
         async function loadCard() {
+            console.log('[APP] loadCard called');
             try {
+                console.log('[API] GET /api/get-card, userId:', userId);
                 const res = await fetch('/api/get-card', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ userId: userId })
                 });
                 
+                console.log('[API] Response status:', res.status);
                 document.getElementById('loading').style.display = 'none';
                 
                 if (res.status === 403) {
+                    console.log('[API] No access, show buttons');
                     document.getElementById('noAccess').style.display = 'block';
                     return;
                 }
                 
                 const data = await res.json();
+                console.log('[API] Card data:', data);
+                
                 document.getElementById('cardView').style.display = 'block';
                 document.getElementById('cardImage').src = '/images/' + data.card.image;
                 document.getElementById('cardTitle').textContent = data.card.title;
@@ -194,43 +222,75 @@
                 document.getElementById('cardDate').textContent = 
                     data.alreadyReceived ? '✨ Ваша карта на сегодня' : '🎉 Новая карта!';
             } catch (e) {
+                console.error('[APP] Error:', e);
                 document.getElementById('loading').style.display = 'none';
                 showModal('Ошибка загрузки: ' + e.message, null);
             }
         }
         
         async function watchAd() {
+            console.log('[APP] watchAd called');
             showModal('Нажмите OK для получения карты.', async function() {
+                console.log('[APP] Modal OK clicked, calling API');
                 try {
+                    document.getElementById('loader').style.display = 'block';
+                    console.log('[API] POST /api/watch-ad');
+                    
                     const res = await fetch('/api/watch-ad', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ userId: userId })
                     });
+                    
+                    console.log('[API] Response status:', res.status);
+                    document.getElementById('loader').style.display = 'none';
+                    
+                    if (!res.ok) {
+                        throw new Error('Server error: ' + res.status);
+                    }
+                    
                     document.getElementById('noAccess').style.display = 'none';
                     loadCard();
                 } catch (e) {
+                    console.error('[APP] Error in watchAd:', e);
+                    document.getElementById('loader').style.display = 'none';
                     showModal('Ошибка: ' + e.message, null);
                 }
             });
         }
         
         async function subscribe() {
+            console.log('[APP] subscribe called');
             showModal('Подписка 100₽/мес. Здесь будет переход к оплате.', async function() {
+                console.log('[APP] Modal OK clicked, calling API');
                 try {
+                    document.getElementById('loader').style.display = 'block';
+                    console.log('[API] POST /api/subscribe');
+                    
                     const res = await fetch('/api/subscribe', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ userId: userId })
                     });
+                    
+                    console.log('[API] Response status:', res.status);
+                    document.getElementById('loader').style.display = 'none';
+                    
+                    if (!res.ok) {
+                        throw new Error('Server error: ' + res.status);
+                    }
+                    
                     document.getElementById('noAccess').style.display = 'none';
                     loadCard();
                 } catch (e) {
+                    console.error('[APP] Error in subscribe:', e);
+                    document.getElementById('loader').style.display = 'none';
                     showModal('Ошибка: ' + e.message, null);
                 }
             });
         }
         
+        console.log('[APP] Starting loadCard');
         loadCard();
     </script>
 </body>
