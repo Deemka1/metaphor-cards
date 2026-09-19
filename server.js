@@ -6,20 +6,26 @@ const crypto = require('crypto');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// ===== SUPABASE НАСТРОЙКИ =====
-// Если переменные окружения не заданы — используем значения по умолчанию (для локального теста)
-const SUPABASE_URL = process.env.SUPABASE_URL || 'https://ВАШ_ПРОЕКТ.supabase.co';
-const SUPABASE_KEY = process.env.SUPABASE_KEY || 'ВАШ_ANON_KEY';
-const USE_SUPABASE = SUPABASE_URL.includes('supabase.co');
+// ===== ПРОВЕРКА SUPABASE =====
+const SUPABASE_URL = process.env.SUPABASE_URL || '';
+const SUPABASE_KEY = process.env.SUPABASE_KEY || '';
 
-console.log(' Supabase URL:', SUPABASE_URL);
-console.log('🔑 Supabase Key:', SUPABASE_KEY ? '***' + SUPABASE_KEY.slice(-10) : 'НЕ ЗАДАН');
-console.log(' Режим:', USE_SUPABASE ? 'Supabase' : 'Локальный файл db.json');
+// Включаем Supabase ТОЛЬКО если заданы реальные значения
+const USE_SUPABASE = SUPABASE_URL.includes('.supabase.co') && 
+                     SUPABASE_KEY.startsWith('eyJ') &&
+                     !SUPABASE_URL.includes('ВАШ');
+
+console.log('\n========================================');
+console.log('🚀 Сервер запускается');
+console.log('📡 SUPABASE_URL:', SUPABASE_URL || '(не задан)');
+console.log('🔑 SUPABASE_KEY:', SUPABASE_KEY ? '***' + SUPABASE_KEY.slice(-8) : '(не задан)');
+console.log('⚙️  Режим:', USE_SUPABASE ? 'SUPABASE' : 'ЛОКАЛЬНЫЙ ФАЙЛ db.json');
+console.log('========================================\n');
 
 const cardsData = JSON.parse(fs.readFileSync(path.join(__dirname, 'cards.json'), 'utf-8'));
 const cards = cardsData.cards;
 
-// ===== ЛОКАЛЬНАЯ БД (fallback) =====
+// ===== ЛОКАЛЬНАЯ БД =====
 const DB_PATH = path.join(__dirname, 'db.json');
 
 function loadLocalDB() {
@@ -31,11 +37,15 @@ function loadLocalDB() {
 }
 
 function saveLocalDB(db) {
-    fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
+    try {
+        fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
+    } catch (e) {
+        console.error('❌ Ошибка записи db.json:', e.message);
+    }
 }
 
-// ===== SUPABASE ФУНКЦИИ =====
-async function supabaseRequest(method, urlPath, body = null) {
+// ===== SUPABASE =====
+async function supabaseQuery(method, urlPath, body = null) {
     const url = `${SUPABASE_URL}/rest/v1/${urlPath}`;
     const headers = {
         'apikey': SUPABASE_KEY,
@@ -52,53 +62,49 @@ async function supabaseRequest(method, urlPath, body = null) {
     const res = await fetch(url, options);
     const text = await res.text();
     
-    console.log(`  📥 Status: ${res.status}, Body: ${text.slice(0, 200)}`);
-    
+    console.log(`  📥 Status: ${res.status}`);
     if (!res.ok) {
-        throw new Error(`Supabase error ${res.status}: ${text}`);
+        console.error(`  ❌ Response: ${text.slice(0, 300)}`);
+        throw new Error(`Supabase ${res.status}: ${text}`);
     }
     
     try {
         return JSON.parse(text);
     } catch {
-        return text;
-    }
-}
-
-async function getUserFromSupabase(userId) {
-    try {
-        const result = await supabaseRequest('GET', `users?user_id=eq.${userId}&select=*`);
-        return Array.isArray(result) ? result[0] : null;
-    } catch (e) {
-        console.error('  ❌ getUserFromSupabase error:', e.message);
         return null;
     }
 }
 
-async function upsertUser(userId, data) {
+async function getUserSupabase(userId) {
     try {
-        // Пробуем INSERT с on conflict (upsert)
-        const result = await supabaseRequest('POST', 'users', {
-            user_id: userId,
-            ...data
-        });
-        console.log('  ✅ Upsert success');
-        return true;
+        const result = await supabaseQuery('GET', `users?user_id=eq.${encodeURIComponent(userId)}&select=*`);
+        return Array.isArray(result) && result.length > 0 ? result[0] : null;
     } catch (e) {
-        console.error('  ❌ Upsert error:', e.message);
-        // Если конфликт — пробуем PATCH
-        try {
-            await supabaseRequest('PATCH', `users?user_id=eq.${userId}`, data);
-            console.log('  ✅ Patch success');
-            return true;
-        } catch (e2) {
-            console.error('  ❌ Patch error:', e2.message);
-            return false;
-        }
+        console.error('  ❌ getUserSupabase:', e.message);
+        return null;
     }
 }
 
-// ===== ЛОГИКА =====
+async function saveUserSupabase(userId, data) {
+    try {
+        // Сначала пробуем получить существующего
+        const existing = await getUserSupabase(userId);
+        
+        if (existing) {
+            // Обновляем
+            await supabaseQuery('PATCH', `users?user_id=eq.${encodeURIComponent(userId)}`, data);
+        } else {
+            // Создаём
+            await supabaseQuery('POST', 'users', { user_id: userId, ...data });
+        }
+        return true;
+    } catch (e) {
+        console.error('  ❌ saveUserSupabase:', e.message);
+        return false;
+    }
+}
+
+// ===== УНИВЕРСАЛЬНЫЕ ФУНКЦИИ =====
 function shuffleWithSeed(array, seed) {
     const result = [...array];
     let m = result.length;
@@ -122,21 +128,35 @@ function getToday() {
     return new Date().toISOString().split('T')[0];
 }
 
-async function getUserData(userId) {
+// Нормализация данных пользователя (унифицируем поля из Supabase и локальной БД)
+function normalizeUser(user) {
+    if (!user) return null;
+    return {
+        card_index: user.card_index ?? user.cardIndex ?? 0,
+        last_date: user.last_date ?? user.lastDate ?? null,
+        last_card_id: user.last_card_id ?? user.lastCardId ?? null,
+        has_access: user.has_access ?? user.hasAccess ?? false,
+        access_date: user.access_date ?? user.accessDate ?? null
+    };
+}
+
+async function getUser(userId) {
     if (USE_SUPABASE) {
-        return await getUserFromSupabase(userId);
+        const user = await getUserSupabase(userId);
+        return normalizeUser(user);
     } else {
         const db = loadLocalDB();
-        return db[userId] || null;
+        return normalizeUser(db[userId]);
     }
 }
 
-async function saveUserData(userId, data) {
+async function saveUser(userId, data) {
     if (USE_SUPABASE) {
-        return await upsertUser(userId, data);
+        return await saveUserSupabase(userId, data);
     } else {
         const db = loadLocalDB();
-        db[userId] = { ...db[userId], ...data };
+        const existing = db[userId] || {};
+        db[userId] = { ...existing, ...data };
         saveLocalDB(db);
         return true;
     }
@@ -144,69 +164,63 @@ async function saveUserData(userId, data) {
 
 async function hasAccessToday(userId) {
     const today = getToday();
-    const user = await getUserData(userId);
+    const user = await getUser(userId);
     
     if (!user) {
-        console.log(`  🔍 hasAccessToday: пользователь не найден`);
+        console.log(`  🔍 hasAccessToday: пользователь ${userId} не найден`);
         return false;
     }
     
-    // Supabase возвращает boolean как true/false, локальная БД тоже
-    const hasAccess = user.has_access === true || user.hasAccess === true;
-    const accessDate = user.access_date || user.accessDate;
-    
-    console.log(`  🔍 hasAccessToday: hasAccess=${hasAccess}, accessDate=${accessDate}, today=${today}`);
-    
-    return hasAccess && accessDate === today;
+    const result = user.has_access === true && user.access_date === today;
+    console.log(`  🔍 hasAccessToday: has_access=${user.has_access}, access_date=${user.access_date}, today=${today} => ${result}`);
+    return result;
 }
 
 async function grantAccess(userId) {
     const today = getToday();
-    console.log(`  🔑 grantAccess: userId=${userId}, today=${today}`);
+    console.log(`   grantAccess: userId=${userId}, today=${today}`);
     
-    const user = await getUserData(userId);
+    const user = await getUser(userId);
+    const cardIndex = user ? user.card_index : 0;
     
     const data = {
         has_access: true,
         access_date: today,
-        card_index: user ? (user.card_index || 0) : 0,
-        last_date: user ? (user.last_date || '') : '',
-        last_card_id: user ? (user.last_card_id || null) : null
+        card_index: cardIndex,
+        last_date: user ? user.last_date : null,
+        last_card_id: user ? user.last_card_id : null
     };
     
-    const success = await saveUserData(userId, data);
-    console.log(`   grantAccess result: ${success}`);
+    const success = await saveUser(userId, data);
+    console.log(`  ✅ grantAccess result: ${success}`);
     return success;
 }
 
 async function getTodayCard(userId) {
     const today = getToday();
-    const user = await getUserData(userId);
+    const user = await getUser(userId);
     
     // Если сегодня уже получал — возвращаем ту же
-    const lastDate = user ? (user.last_date || user.lastDate) : null;
-    const lastCardId = user ? (user.last_card_id || user.lastCardId) : null;
-    
-    if (lastDate === today && lastCardId) {
-        console.log(`  🃏 Возвращаем ту же карту: ${lastCardId}`);
-        return cards.find(c => c.id === lastCardId);
+    if (user && user.last_date === today && user.last_card_id) {
+        console.log(`  🃏 Возвращаем сохранённую карту: ${user.last_card_id}`);
+        return cards.find(c => c.id === user.last_card_id);
     }
     
     // Проверяем доступ
     if (!await hasAccessToday(userId)) {
-        console.log(`  🃏 Нет доступа`);
+        console.log(`  🃏 Нет доступа на сегодня`);
         return null;
     }
     
     // Берём следующую карту
     const order = getUserCardOrder(userId);
-    const cardIndex = user ? (user.card_index || user.cardIndex || 0) : 0;
+    const cardIndex = user ? user.card_index : 0;
     const card = order[cardIndex % order.length];
     
-    console.log(`  🃏 Новая карта: ${card.id} - ${card.title}, cardIndex=${cardIndex}`);
+    console.log(`  🃏 Новая карта: id=${card.id}, title="${card.title}", cardIndex=${cardIndex}`);
     
     // Сохраняем
-    await saveUserData(userId, {
+    await saveUser(userId, {
         card_index: cardIndex + 1,
         last_date: today,
         last_card_id: card.id,
@@ -223,58 +237,75 @@ app.use(express.static('public'));
 
 app.post('/api/get-card', async (req, res) => {
     console.log('\n📥 POST /api/get-card');
-    const { userId } = req.body;
-    if (!userId) return res.status(400).json({ error: 'userId required' });
-    
-    const hasAccess = await hasAccessToday(userId);
-    console.log(`  hasAccessToday: ${hasAccess}`);
-    
-    if (hasAccess) {
-        const card = await getTodayCard(userId);
-        if (card) {
-            return res.json({ card, alreadyReceived: true });
+    try {
+        const { userId } = req.body;
+        if (!userId) return res.status(400).json({ error: 'userId required' });
+        
+        if (await hasAccessToday(userId)) {
+            const card = await getTodayCard(userId);
+            if (card) {
+                return res.json({ card, alreadyReceived: true });
+            }
         }
+        
+        return res.status(403).json({ error: 'no_access' });
+    } catch (e) {
+        console.error('❌ Ошибка в get-card:', e.message);
+        return res.status(500).json({ error: e.message });
     }
-    
-    return res.status(403).json({ error: 'no_access' });
 });
 
 app.post('/api/watch-ad', async (req, res) => {
-    console.log('\n📥 POST /api/watch-ad');
-    const { userId } = req.body;
-    if (!userId) return res.status(400).json({ error: 'userId required' });
-    
-    const success = await grantAccess(userId);
-    if (success) {
-        res.json({ success: true });
-    } else {
-        res.status(500).json({ error: 'Failed to save access' });
+    console.log('\n POST /api/watch-ad');
+    try {
+        const { userId } = req.body;
+        if (!userId) return res.status(400).json({ error: 'userId required' });
+        
+        const success = await grantAccess(userId);
+        if (success) {
+            return res.json({ success: true });
+        } else {
+            return res.status(500).json({ error: 'Failed to save' });
+        }
+    } catch (e) {
+        console.error('❌ Ошибка в watch-ad:', e.message);
+        return res.status(500).json({ error: e.message });
     }
 });
 
 app.post('/api/subscribe', async (req, res) => {
     console.log('\n📥 POST /api/subscribe');
-    const { userId } = req.body;
-    if (!userId) return res.status(400).json({ error: 'userId required' });
-    
-    const success = await grantAccess(userId);
-    if (success) {
-        res.json({ success: true });
-    } else {
-        res.status(500).json({ error: 'Failed to save access' });
+    try {
+        const { userId } = req.body;
+        if (!userId) return res.status(400).json({ error: 'userId required' });
+        
+        const success = await grantAccess(userId);
+        if (success) {
+            return res.json({ success: true });
+        } else {
+            return res.status(500).json({ error: 'Failed to save' });
+        }
+    } catch (e) {
+        console.error('❌ Ошибка в subscribe:', e.message);
+        return res.status(500).json({ error: e.message });
     }
 });
 
 app.get('/api/status/:userId', async (req, res) => {
-    const { userId } = req.params;
-    const user = await getUserData(userId);
-    res.json({
-        hasAccessToday: await hasAccessToday(userId),
-        totalCardsReceived: user?.card_index || user?.cardIndex || 0,
-        lastCardDate: user?.last_date || user?.lastDate || null
-    });
+    try {
+        const { userId } = req.params;
+        const user = await getUser(userId);
+        res.json({
+            hasAccessToday: await hasAccessToday(userId),
+            totalCardsReceived: user?.card_index || 0,
+            lastCardDate: user?.last_date || null,
+            mode: USE_SUPABASE ? 'supabase' : 'local'
+        });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
 });
 
 app.listen(PORT, () => {
-    console.log(`\n✅ Сервер запущен на http://localhost:${PORT}`);
+    console.log(`✅ Сервер запущен на http://localhost:${PORT}`);
 });
