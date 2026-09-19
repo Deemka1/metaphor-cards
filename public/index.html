@@ -547,48 +547,68 @@
         }
 
         async function shareToStory() {
-            const title = document.getElementById('cardTitle').textContent;
-            const imageUrl = document.getElementById('cardImage').src;
-            const text = `Моя карта дня: "${title}" 🎴`;
-            const url = `https://t.me/${BOT_USERNAME}`;
+    const title = document.getElementById('cardTitle').textContent;
+    const imageUrl = document.getElementById('cardImage').src;
+    const text = `Моя карта дня: "${title}" 🎴`;
+    const url = `https://t.me/${BOT_USERNAME}`;
+    
+    // Пробуем использовать нативный Web Share API (работает на мобильных)
+    if (navigator.share) {
+        try {
+            // Загружаем изображение
+            const response = await fetch(imageUrl);
+            const blob = await response.blob();
+            const file = new File([blob], 'card.jpg', { type: 'image/jpeg' });
             
-            // Проверяем, доступен ли метод shareToStory
-            if (tg && typeof tg.shareToStory === 'function') {
-                try {
-                    // Загружаем изображение как blob
-                    const response = await fetch(imageUrl);
-                    const blob = await response.blob();
-                    
-                    // Вызываем shareToStory с правильными параметрами
-                    tg.shareToStory({
-                        media: {
-                            type: 'photo',
-                            data: blob
-                        },
-                        text: text,
-                        widget_link: {
-                            url: url,
-                            name: 'Карта дня'
-                        }
-                    });
-                    return;
-                } catch (e) {
-                    console.log('shareToStory error:', e);
-                }
-            }
-            
-            // Если shareToStory недоступен — показываем инструкцию
-            showModal(
-                ' Как опубликовать в Истории:\n\n' +
-                '1. Сделайте скриншот этой карты\n' +
-                '2. Откройте Telegram\n' +
-                '3. Перейдите в Stories\n' +
-                '4. Выберите скриншот\n' +
-                '5. Добавьте текст и опубликуйте\n\n' +
-                'Или нажмите "Поделиться с другом", чтобы отправить карту в чат.',
-                null
-            );
+            // Открываем системное меню шеринга
+            await navigator.share({
+                title: 'Карта дня',
+                text: text,
+                files: [file]
+            });
+            return;
+        } catch (e) {
+            console.log('navigator.share error:', e);
+            // Если пользователь отменил — не показываем ошибку
+            if (e.name === 'AbortError') return;
         }
+    }
+    
+    // Если Web Share API недоступен — пробуем tg.shareToStory
+    if (tg && typeof tg.shareToStory === 'function') {
+        try {
+            const response = await fetch(imageUrl);
+            const blob = await response.blob();
+            
+            tg.shareToStory({
+                media: {
+                    type: 'photo',
+                    data: blob
+                },
+                text: text,
+                widget_link: {
+                    url: url,
+                    name: 'Карта дня'
+                }
+            });
+            return;
+        } catch (e) {
+            console.log('tg.shareToStory error:', e);
+        }
+    }
+    
+    // Если ничего не работает — показываем инструкцию
+    showModal(
+        '📸 Как опубликовать в Истории:\n\n' +
+        '1. Сделайте скриншот этой карты\n' +
+        '2. Откройте Telegram\n' +
+        '3. Свайпните вправо (или нажмите на аватарку)\n' +
+        '4. Выберите скриншот\n' +
+        '5. Добавьте текст и опубликуйте\n\n' +
+        'Или нажмите "Поделиться с другом", чтобы отправить карту в чат.',
+        null
+    );
+}
         
         loadCard();
     </script>
