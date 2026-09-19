@@ -23,6 +23,11 @@
             padding: 30px;
             box-shadow: 0 20px 60px rgba(0,0,0,0.3);
             text-align: center;
+            animation: appear 0.6s ease-out;
+        }
+        @keyframes appear {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
         }
         .card-image {
             width: 100%;
@@ -61,7 +66,9 @@
             font-weight: 600;
             cursor: pointer;
             margin-bottom: 10px;
+            transition: transform 0.1s;
         }
+        .btn:active { transform: scale(0.98); }
         .btn-primary { background: #667eea; color: white; }
         .btn-secondary { background: #f0f0f0; color: #333; }
         .info {
@@ -93,6 +100,7 @@
             padding: 30px;
             max-width: 300px;
             text-align: center;
+            animation: appear 0.3s ease-out;
         }
         .modal-box p { margin-bottom: 20px; font-size: 16px; color: #333; }
         .modal-box button {
@@ -104,22 +112,6 @@
             font-size: 16px;
             cursor: pointer;
         }
-        
-        /* Блок отладки */
-        .debug-log {
-            margin-top: 20px;
-            padding: 15px;
-            background: #1e1e1e;
-            color: #00ff00;
-            border-radius: 10px;
-            font-family: monospace;
-            font-size: 12px;
-            max-height: 200px;
-            overflow-y: auto;
-            text-align: left;
-            white-space: pre-wrap;
-            word-break: break-all;
-        }
     </style>
 </head>
 <body>
@@ -130,10 +122,10 @@
             <h2>🎴 Карта дня</h2>
             <p>Получайте одну уникальную карту каждый день.<br>50 карт — 50 дней без повторов!</p>
             <button class="btn btn-primary" onclick="watchAd()">
-                📺 Посмотреть рекламу (бесплатно)
+                📺 Получить карту (бесплатно)
             </button>
             <button class="btn btn-secondary" onclick="subscribe()">
-                 Подписка 100₽/мес (без рекламы)
+                💎 Подписка 100₽/мес (без рекламы)
             </button>
         </div>
         
@@ -145,9 +137,6 @@
             <p class="card-description" id="cardDescription"></p>
             <p style="color:#999; font-size:14px;" id="cardDate"></p>
         </div>
-        
-        <!-- Лог отладки -->
-        <div id="debugLog" class="debug-log"></div>
     </div>
 
     <!-- Модалка -->
@@ -159,44 +148,29 @@
     </div>
 
     <script>
-        const debugEl = document.getElementById('debugLog');
-        function log(msg) {
-            const time = new Date().toLocaleTimeString();
-            debugEl.innerHTML += `[${time}] ${msg}\n`;
-            debugEl.scrollTop = debugEl.scrollHeight;
-            console.log('[DEBUG]', msg);
-        }
-        
-        log('Инициализация...');
-        
         const tg = window.Telegram?.WebApp;
         if (tg) {
-            try { tg.ready(); log('Telegram ready'); } catch(e) { log('Telegram ready error: ' + e.message); }
-            try { tg.expand(); log('Telegram expand'); } catch(e) { log('Telegram expand error: ' + e.message); }
+            try { tg.ready(); } catch(e) {}
+            try { tg.expand(); } catch(e) {}
         }
         
         const userId = (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) 
             ? tg.initDataUnsafe.user.id 
             : 'test_user_123';
         
-        log('userId: ' + userId);
-        
         let modalCallback = null;
         
         function showModal(text, callback) {
-            log('showModal: ' + text);
             document.getElementById('modalText').textContent = text;
             document.getElementById('modal').classList.add('active');
             modalCallback = callback;
         }
         
         function closeModal() {
-            log('closeModal called');
             document.getElementById('modal').classList.remove('active');
             if (modalCallback) {
                 const cb = modalCallback;
                 modalCallback = null;
-                log('Вызов callback');
                 cb();
             }
         }
@@ -204,27 +178,21 @@
         document.getElementById('modalBtn').addEventListener('click', closeModal);
         
         async function loadCard() {
-            log('loadCard called');
             try {
-                log('Запрос к /api/get-card');
                 const res = await fetch('/api/get-card', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ userId: userId })
                 });
                 
-                log('Ответ сервера: ' + res.status);
                 document.getElementById('loading').style.display = 'none';
                 
                 if (res.status === 403) {
-                    log('Нет доступа, показываем кнопки');
                     document.getElementById('noAccess').style.display = 'block';
                     return;
                 }
                 
                 const data = await res.json();
-                log('Получена карта: ' + data.card.title);
-                
                 document.getElementById('cardView').style.display = 'block';
                 document.getElementById('cardImage').src = '/images/' + data.card.image;
                 document.getElementById('cardTitle').textContent = data.card.title;
@@ -232,71 +200,49 @@
                 document.getElementById('cardDate').textContent = 
                     data.alreadyReceived ? '✨ Ваша карта на сегодня' : '🎉 Новая карта!';
             } catch (e) {
-                log('Ошибка loadCard: ' + e.message);
                 document.getElementById('loading').style.display = 'none';
-                showModal('Ошибка загрузки: ' + e.message, null);
+                showModal('Ошибка загрузки. Попробуйте позже.', null);
             }
         }
         
         async function watchAd() {
-            log('watchAd called');
-            showModal('Нажмите OK для получения карты.', async function() {
-                log('Callback после OK');
+            showModal('Нажмите OK, чтобы получить карту.', async function() {
                 try {
-                    log('Запрос к /api/watch-ad');
-                    
                     const res = await fetch('/api/watch-ad', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ userId: userId })
                     });
                     
-                    log('Ответ сервера: ' + res.status);
+                    if (!res.ok) throw new Error('Ошибка сервера');
                     
-                    if (!res.ok) {
-                        throw new Error('Server error: ' + res.status);
-                    }
-                    
-                    log('Успех, загружаем карту');
                     document.getElementById('noAccess').style.display = 'none';
                     loadCard();
                 } catch (e) {
-                    log('Ошибка в watchAd: ' + e.message);
                     showModal('Ошибка: ' + e.message, null);
                 }
             });
         }
         
         async function subscribe() {
-            log('subscribe called');
-            showModal('Подписка 100₽/мес. Здесь будет переход к оплате.', async function() {
-                log('Callback после OK');
+            showModal('Подписка 100₽/мес. Оплата скоро будет доступна.', async function() {
                 try {
-                    log('Запрос к /api/subscribe');
-                    
                     const res = await fetch('/api/subscribe', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ userId: userId })
                     });
                     
-                    log('Ответ сервера: ' + res.status);
+                    if (!res.ok) throw new Error('Ошибка сервера');
                     
-                    if (!res.ok) {
-                        throw new Error('Server error: ' + res.status);
-                    }
-                    
-                    log('Успех, загружаем карту');
                     document.getElementById('noAccess').style.display = 'none';
                     loadCard();
                 } catch (e) {
-                    log('Ошибка в subscribe: ' + e.message);
                     showModal('Ошибка: ' + e.message, null);
                 }
             });
         }
         
-        log('Старт loadCard');
         loadCard();
     </script>
 </body>
