@@ -14,6 +14,7 @@ const USE_SUPABASE = SUPABASE_URL.includes('.supabase.co') &&
                      SUPABASE_KEY.startsWith('eyJ') &&
                      !SUPABASE_URL.includes('ВАШ');
 
+
 console.log('\n========================================');
 console.log('🚀 Сервер запускается');
 console.log('📡 SUPABASE_URL:', SUPABASE_URL || '(не задан)');
