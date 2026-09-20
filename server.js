@@ -14,7 +14,6 @@ const USE_SUPABASE = SUPABASE_URL.includes('.supabase.co') &&
                      SUPABASE_KEY.startsWith('eyJ') &&
                      !SUPABASE_URL.includes('ВАШ');
 
-
 console.log('\n========================================');
 console.log('🚀 Сервер запускается');
 console.log('📡 SUPABASE_URL:', SUPABASE_URL || '(не задан)');
@@ -88,7 +87,7 @@ async function saveUserSupabase(userId, data) {
     }
 }
 
-// ===== УНИВЕРСАЛЬНЫЕ ФУНКЦИИ =====
+// ===== ЛОГИКА КАРТ =====
 function shuffleWithSeed(array, seed) {
     const result = [...array];
     let m = result.length;
@@ -195,6 +194,76 @@ async function getTodayCard(userId) {
     return card;
 }
 
+// ===== НАПОМИНАНИЯ =====
+const BOT_TOKEN = process.env.BOT_TOKEN || '';
+const REMINDER_SECRET = 'my_secret_key_2026';
+const APP_URL = 'https://metaphor-cards.onrender.com';
+
+app.get('/api/send-reminders', async (req, res) => {
+    if (req.query.key !== REMINDER_SECRET) {
+        return res.status(403).json({ error: 'Forbidden' });
+    }
+    
+    if (!BOT_TOKEN) {
+        return res.status(500).json({ error: 'BOT_TOKEN не задан в Environment' });
+    }
+    
+    try {
+        const today = getToday();
+        const sendToAll = req.query.all === '1';
+        let users = [];
+        
+        if (USE_SUPABASE) {
+            const result = await supabaseQuery('GET', 'users?select=user_id,access_date');
+            if (Array.isArray(result)) {
+                users = result
+                    .filter(u => sendToAll || u.access_date !== today)
+                    .map(u => u.user_id);
+            }
+        } else {
+            const db = loadLocalDB();
+            users = Object.keys(db).filter(id => sendToAll || db[id].access_date !== today);
+        }
+        
+        let sent = 0, failed = 0;
+        
+        for (const userId of users) {
+            if (String(userId).startsWith('test_')) continue;
+            
+            try {
+                const response = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        chat_id: userId,
+                        text: '🎴 <b>Твоя карта дня готова!</b>\n\nВселенная приготовила для тебя новое послание. Нажми кнопку, чтобы открыть его.',
+                        parse_mode: 'HTML',
+                        reply_markup: {
+                            inline_keyboard: [[{
+                                text: '🎴 Получить карту',
+                                web_app: { url: APP_URL }
+                            }]]
+                        }
+                    })
+                });
+                
+                if (response.ok) sent++;
+                else failed++;
+                
+                await new Promise(r => setTimeout(r, 100));
+            } catch (e) {
+                failed++;
+            }
+        }
+        
+        console.log(`📨 Напоминания: отправлено ${sent}, ошибок ${failed}`);
+        res.json({ success: true, sent, failed, total: users.length, mode: sendToAll ? 'ALL' : 'normal' });
+    } catch (e) {
+        console.error('❌ Ошибка напоминаний:', e.message);
+        res.status(500).json({ error: e.message });
+    }
+});
+
 // ===== API МАРШРУТЫ =====
 app.use(express.json());
 app.use(express.static('public'));
@@ -252,81 +321,6 @@ app.get('/api/status/:userId', async (req, res) => {
             mode: USE_SUPABASE ? 'supabase' : 'local'
         });
     } catch (e) {
-        res.status(500).json({ error: e.message });
-    }
-});
-
-// ===== ЕЖЕДНЕВНЫЕ НАПОМИНАНИЯ =====
-const BOT_TOKEN = process.env.BOT_TOKEN || '';
-const REMINDER_SECRET = 'my_secret_key_2026';
-const APP_URL = 'https://metaphor-cards.onrender.com';
-
-// ===== ЕЖЕДНЕВНЫЕ НАПОМИНАНИЯ =====
-const BOT_TOKEN = process.env.BOT_TOKEN || '';
-const REMINDER_SECRET = 'my_secret_key_2026';
-const APP_URL = 'https://metaphor-cards.onrender.com';
-
-app.get('/api/send-reminders', async (req, res) => {
-    if (req.query.key !== REMINDER_SECRET) {
-        return res.status(403).json({ error: 'Forbidden' });
-    }
-    
-    if (!BOT_TOKEN) {
-        return res.status(500).json({ error: 'BOT_TOKEN не задан в Environment' });
-    }
-    
-    try {
-        const today = getToday();
-        const sendToAll = req.query.all === '1'; // ТЕСТОВЫЙ РЕЖИМ
-        let users = [];
-        
-        if (USE_SUPABASE) {
-            const result = await supabaseQuery('GET', 'users?select=user_id,access_date');
-            if (Array.isArray(result)) {
-                users = result
-                    .filter(u => sendToAll || u.access_date !== today)
-                    .map(u => u.user_id);
-            }
-        } else {
-            const db = loadLocalDB();
-            users = Object.keys(db).filter(id => sendToAll || db[id].access_date !== today);
-        }
-        
-        let sent = 0, failed = 0;
-        
-        for (const userId of users) {
-            if (String(userId).startsWith('test_')) continue;
-            
-            try {
-                const response = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        chat_id: userId,
-                        text: '🎴 <b>Твоя карта дня готова!</b>\n\nВселенная приготовила для тебя новое послание. Нажми кнопку, чтобы открыть его.',
-                        parse_mode: 'HTML',
-                        reply_markup: {
-                            inline_keyboard: [[{
-                                text: '🎴 Получить карту',
-                                web_app: { url: APP_URL }
-                            }]]
-                        }
-                    })
-                });
-                
-                if (response.ok) sent++;
-                else failed++;
-                
-                await new Promise(r => setTimeout(r, 100));
-            } catch (e) {
-                failed++;
-            }
-        }
-        
-        console.log(`📨 Напоминания: отправлено ${sent}, ошибок ${failed}`);
-        res.json({ success: true, sent, failed, total: users.length, mode: sendToAll ? 'ALL' : 'normal' });
-    } catch (e) {
-        console.error('❌ Ошибка напоминаний:', e.message);
         res.status(500).json({ error: e.message });
     }
 });
