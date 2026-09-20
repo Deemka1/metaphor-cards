@@ -260,8 +260,12 @@ const BOT_TOKEN = process.env.BOT_TOKEN || '';
 const REMINDER_SECRET = 'my_secret_key_2026';
 const APP_URL = 'https://metaphor-cards.onrender.com';
 
+// ===== ЕЖЕДНЕВНЫЕ НАПОМИНАНИЯ =====
+const BOT_TOKEN = process.env.BOT_TOKEN || '';
+const REMINDER_SECRET = 'my_secret_key_2026';
+const APP_URL = 'https://metaphor-cards.onrender.com';
+
 app.get('/api/send-reminders', async (req, res) => {
-    // Защита: вызвать может только тот, кто знает секретный ключ
     if (req.query.key !== REMINDER_SECRET) {
         return res.status(403).json({ error: 'Forbidden' });
     }
@@ -272,26 +276,24 @@ app.get('/api/send-reminders', async (req, res) => {
     
     try {
         const today = getToday();
+        const sendToAll = req.query.all === '1'; // ТЕСТОВЫЙ РЕЖИМ
         let users = [];
         
-        // Получаем всех пользователей из Supabase
         if (USE_SUPABASE) {
             const result = await supabaseQuery('GET', 'users?select=user_id,access_date');
             if (Array.isArray(result)) {
-                // Оставляем только тех, кто сегодня ещё НЕ получал карту
                 users = result
-                    .filter(u => u.access_date !== today)
+                    .filter(u => sendToAll || u.access_date !== today)
                     .map(u => u.user_id);
             }
         } else {
             const db = loadLocalDB();
-            users = Object.keys(db).filter(id => db[id].access_date !== today);
+            users = Object.keys(db).filter(id => sendToAll || db[id].access_date !== today);
         }
         
         let sent = 0, failed = 0;
         
         for (const userId of users) {
-            // Пропускаем тестовых пользователей
             if (String(userId).startsWith('test_')) continue;
             
             try {
@@ -311,13 +313,9 @@ app.get('/api/send-reminders', async (req, res) => {
                     })
                 });
                 
-                if (response.ok) {
-                    sent++;
-                } else {
-                    failed++;
-                }
+                if (response.ok) sent++;
+                else failed++;
                 
-                // Пауза 100мс, чтобы не превысить лимиты Telegram
                 await new Promise(r => setTimeout(r, 100));
             } catch (e) {
                 failed++;
@@ -325,7 +323,7 @@ app.get('/api/send-reminders', async (req, res) => {
         }
         
         console.log(`📨 Напоминания: отправлено ${sent}, ошибок ${failed}`);
-        res.json({ success: true, sent, failed, total: users.length });
+        res.json({ success: true, sent, failed, total: users.length, mode: sendToAll ? 'ALL' : 'normal' });
     } catch (e) {
         console.error('❌ Ошибка напоминаний:', e.message);
         res.status(500).json({ error: e.message });
